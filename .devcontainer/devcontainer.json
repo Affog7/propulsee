@@ -1,0 +1,28 @@
+{
+  "name": "Propulsee",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": { "label": "API", "onAutoForward": "notify" }
+  },
+  // Postgres tourne sur l'hôte via `docker compose up -d db`.
+  "runArgs": ["--add-host=host.docker.internal:host-gateway"],
+  "containerEnv": {
+    "DATABASE_URL": "postgres://propulsee:propulsee@host.docker.internal:5433/propulsee"
+  },
+  // node_modules dans un volume : installs rapides et pas de mélange avec les binaires Windows/macOS de l'hôte.
+  "mounts": [
+    "source=propulsee-node_modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
+  ],
+  "postCreateCommand": "sudo chown node node_modules && npm install",
+  "customizations": {
+    "vscode": {
+      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"],
+      "settings": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": { "source.fixAll.eslint": "explicit" }
+      }
+    }
+  }
+}

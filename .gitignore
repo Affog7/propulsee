@@ -1,0 +1,21 @@
+# Dépendances
+node_modules/
+
+# Builds
+dist/
+coverage/
+*.tsbuildinfo
+
+# Environnement local (seul .env.example est versionné)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / éditeurs
+.DS_Store
+Thumbs.db
+.idea/
