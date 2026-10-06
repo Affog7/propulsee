@@ -1,21 +1,19 @@
-import { cvFileName, type JobOffer, type TailoredCv } from '@propulsee/shared';
 import { useState } from 'react';
-import { downloadCvPdf } from '../lib/cv-pdf';
 
-/** Export PDF du CV adapté, en un clic. */
-export function useCvDownload(): {
+/** Export d'un document en PDF, en un clic : un seul à la fois, erreur affichable. */
+export function useDownload(): {
   busy: boolean;
   error: string | null;
-  download: (tailored: TailoredCv, offer: JobOffer) => void;
+  download: (task: () => Promise<void>) => void;
 } {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function download(tailored: TailoredCv, offer: JobOffer) {
+  function download(task: () => Promise<void>) {
     if (busy) return;
     setBusy(true);
     setError(null);
-    downloadCvPdf(tailored, cvFileName(tailored.cv.fullName, offer.company))
+    task()
       .catch(() => setError('Je n’ai pas réussi à créer le PDF. Réessayez.'))
       .finally(() => setBusy(false));
   }

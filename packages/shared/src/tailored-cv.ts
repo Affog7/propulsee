@@ -283,7 +283,12 @@ function slug(text: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+/** Nom d'un document de candidature, ex. « Camille-Martin-Lettre-Acme.pdf ». */
+export function documentFileName(fullName: string, kind: string, company?: string): string {
+  return [slug(fullName), kind, slug(company ?? '')].filter(Boolean).join('-') + '.pdf';
+}
+
 /** Nom du PDF, ex. « Camille-Martin-CV-Acme.pdf ». */
 export function cvFileName(fullName: string, company?: string): string {
-  return [slug(fullName), 'CV', slug(company ?? '')].filter(Boolean).join('-') + '.pdf';
+  return documentFileName(fullName, 'CV', company);
 }
