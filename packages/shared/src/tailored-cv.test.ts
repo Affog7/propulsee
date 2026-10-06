@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { JobAnalysis } from './job-analysis';
 import { emptyProfile, type MasterProfile } from './profile';
-import { buildTailoredCvPrompt, cvFileName, parseTailoredCvResponse } from './tailored-cv';
+import {
+  buildTailoredCvPrompt,
+  cvFileName,
+  documentFileName,
+  parseTailoredCvResponse,
+} from './tailored-cv';
 
 const offer = {
   url: 'https://example.com/offre',
@@ -168,5 +173,13 @@ describe('cvFileName', () => {
     expect(cvFileName('Camille Martin', 'Acme')).toBe('Camille-Martin-CV-Acme.pdf');
     expect(cvFileName('Élodie Brûlé', 'L’Oréal Paris')).toBe('Elodie-Brule-CV-L-Oreal-Paris.pdf');
     expect(cvFileName('', undefined)).toBe('CV.pdf');
+  });
+});
+
+describe('documentFileName', () => {
+  it('nomme la lettre comme le CV', () => {
+    expect(documentFileName('Camille Martin', 'Lettre', 'Acme')).toBe(
+      'Camille-Martin-Lettre-Acme.pdf',
+    );
   });
 });

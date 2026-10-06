@@ -2,23 +2,31 @@ import {
   APPLICATION_STEPS,
   LLM_PROVIDER_INFO,
   STEP_LABELS,
+  cvFileName,
+  documentFileName,
   nextStep,
   profileInitials,
   type ApplicationStep,
   type LlmSettings,
   type MasterProfile,
+  type TailoredCv,
 } from '@propulsee/shared';
 import { useEffect, useState } from 'react';
 import { fetchHealth } from '../lib/api';
+import { downloadLetterPdf } from '../lib/cover-letter';
+import { downloadCvPdf } from '../lib/cv-pdf';
 import { loadLlmSettings } from '../lib/llm';
 import { loadProfile } from '../lib/profile';
 import { CvPreview } from './CvPreview';
+import { LetterView } from './LetterView';
 import { OfferView } from './OfferView';
 import { ProfileView } from './ProfileView';
 import { SettingsView } from './SettingsView';
 import { VerifyView } from './VerifyView';
 import { useActiveJobOffer } from './use-active-job-offer';
-import { useCvDownload } from './use-cv-download';
+import { useCopy } from './use-copy';
+import { useCoverLetter } from './use-cover-letter';
+import { useDownload } from './use-download';
 import { useOfferAnalysis, type OfferAnalysis } from './use-offer-analysis';
 import { useTailoredCv } from './use-tailored-cv';
 
@@ -31,7 +39,7 @@ const API_LABELS: Record<ApiState, string> = {
   offline: 'API hors ligne',
 };
 
-type View = 'flow' | 'settings' | 'profile' | 'cv';
+type View = 'flow' | 'settings' | 'profile' | 'cv' | 'letter';
 
 /** Écran à ouvrir d'office : ce qui manque encore, dans l'ordre (LLM puis profil). */
 function missingView(llm: LlmSettings | null, profile: MasterProfile | null): View {
@@ -96,14 +104,40 @@ export function App() {
   const next = nextStep(step);
   const activeOffer = offer.status === 'found' ? offer.offer : null;
   const analysis = useOfferAnalysis(activeOffer, llm ?? null, profile ?? null);
-  const cv = useTailoredCv({
+  // CV et lettre se préparent d'eux-mêmes après l'analyse, sauf pendant l'édition du profil.
+  const documents = {
     offer: activeOffer,
     analysis: analysis.state.status === 'done' ? analysis.state.analysis : null,
     llm: llm ?? null,
     profile: profile ?? null,
-    auto: view === 'flow' || view === 'cv',
-  });
-  const cvDownload = useCvDownload();
+    auto: view === 'flow' || view === 'cv' || view === 'letter',
+  };
+  const cv = useTailoredCv(documents);
+  const letter = useCoverLetter(documents);
+  const download = useDownload();
+  const clipboard = useCopy();
+
+  function downloadCv(tailored: TailoredCv) {
+    if (activeOffer) {
+      download.download(() =>
+        downloadCvPdf(tailored, cvFileName(tailored.cv.fullName, activeOffer.company)),
+      );
+    }
+  }
+
+  function downloadLetter() {
+    if (activeOffer && profile && letter.state.status === 'done') {
+      const done = letter.state.letter;
+      download.download(() =>
+        downloadLetterPdf(
+          done,
+          profile,
+          activeOffer,
+          documentFileName(profile.fullName, 'Lettre', activeOffer.company),
+        ),
+      );
+    }
+  }
 
   function prepare() {
     if (!llm) setView('settings');
@@ -171,15 +205,29 @@ export function App() {
       ) : view === 'cv' && activeOffer && cv.state.status === 'done' ? (
         <CvPreview
           tailored={cv.state.tailored}
-          downloading={cvDownload.busy}
-          downloadError={cvDownload.error}
+          downloading={download.busy}
+          downloadError={download.error}
           onDownload={() => {
-            if (cv.state.status === 'done') cvDownload.download(cv.state.tailored, activeOffer);
+            if (cv.state.status === 'done') downloadCv(cv.state.tailored);
           }}
           onRetailor={() => {
             cv.tailor();
             setView('flow');
           }}
+          onClose={() => setView('flow')}
+        />
+      ) : view === 'letter' && activeOffer && letter.format ? (
+        <LetterView
+          state={letter.state}
+          format={letter.format}
+          copied={clipboard.copied}
+          downloading={download.busy}
+          downloadError={download.error}
+          onFormat={letter.setFormat}
+          onEdit={letter.edit}
+          onRegenerate={letter.regenerate}
+          onCopy={clipboard.copy}
+          onDownload={downloadLetter}
           onClose={() => setView('flow')}
         />
       ) : view === 'profile' && llm ? (
@@ -215,11 +263,16 @@ export function App() {
               offer={activeOffer}
               cv={cv.state}
               hasProfile={!!profile}
-              downloading={cvDownload.busy}
-              downloadError={cvDownload.error}
-              onRetry={cv.tailor}
-              onPreview={() => setView('cv')}
-              onDownload={(tailored) => activeOffer && cvDownload.download(tailored, activeOffer)}
+              letter={letter.state}
+              downloading={download.busy}
+              downloadError={download.error}
+              letterCopied={clipboard.copied}
+              onRetryCv={cv.tailor}
+              onPreviewCv={() => setView('cv')}
+              onDownloadCv={downloadCv}
+              onRetryLetter={letter.regenerate}
+              onOpenLetter={() => setView('letter')}
+              onCopyLetter={clipboard.copy}
             />
           ) : (
             <section className="step-content">
