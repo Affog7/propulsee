@@ -12,11 +12,15 @@ import { useEffect, useState } from 'react';
 import { fetchHealth } from '../lib/api';
 import { loadLlmSettings } from '../lib/llm';
 import { loadProfile } from '../lib/profile';
+import { CvPreview } from './CvPreview';
 import { OfferView } from './OfferView';
 import { ProfileView } from './ProfileView';
 import { SettingsView } from './SettingsView';
+import { VerifyView } from './VerifyView';
 import { useActiveJobOffer } from './use-active-job-offer';
+import { useCvDownload } from './use-cv-download';
 import { useOfferAnalysis, type OfferAnalysis } from './use-offer-analysis';
+import { useTailoredCv } from './use-tailored-cv';
 
 type ApiState = 'checking' | 'ok' | 'degraded' | 'offline';
 
@@ -27,7 +31,7 @@ const API_LABELS: Record<ApiState, string> = {
   offline: 'API hors ligne',
 };
 
-type View = 'flow' | 'settings' | 'profile';
+type View = 'flow' | 'settings' | 'profile' | 'cv';
 
 /** Écran à ouvrir d'office : ce qui manque encore, dans l'ordre (LLM puis profil). */
 function missingView(llm: LlmSettings | null, profile: MasterProfile | null): View {
@@ -90,11 +94,24 @@ export function App() {
   const [profile, setProfile] = useState<MasterProfile | null | undefined>(undefined);
   const [view, setView] = useState<View>('flow');
   const next = nextStep(step);
-  const analysis = useOfferAnalysis(
-    offer.status === 'found' ? offer.offer : null,
-    llm ?? null,
-    profile ?? null,
-  );
+  const activeOffer = offer.status === 'found' ? offer.offer : null;
+  const analysis = useOfferAnalysis(activeOffer, llm ?? null, profile ?? null);
+  const cv = useTailoredCv({
+    offer: activeOffer,
+    analysis: analysis.state.status === 'done' ? analysis.state.analysis : null,
+    llm: llm ?? null,
+    profile: profile ?? null,
+    auto: view === 'flow' || view === 'cv',
+  });
+  const cvDownload = useCvDownload();
+
+  function prepare() {
+    if (!llm) setView('settings');
+    else {
+      setStep('prepare');
+      analysis.analyze();
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -151,6 +168,20 @@ export function App() {
           }}
           onClose={() => setView(missingView(llm, profile) === 'profile' ? 'profile' : 'flow')}
         />
+      ) : view === 'cv' && activeOffer && cv.state.status === 'done' ? (
+        <CvPreview
+          tailored={cv.state.tailored}
+          downloading={cvDownload.busy}
+          downloadError={cvDownload.error}
+          onDownload={() => {
+            if (cv.state.status === 'done') cvDownload.download(cv.state.tailored, activeOffer);
+          }}
+          onRetailor={() => {
+            cv.tailor();
+            setView('flow');
+          }}
+          onClose={() => setView('flow')}
+        />
       ) : view === 'profile' && llm ? (
         <ProfileView
           llm={llm}
@@ -179,6 +210,17 @@ export function App() {
 
           {step === 'prepare' ? (
             <OfferView state={offer} analysis={analysis.state} hasProfile={!!profile} />
+          ) : step === 'verify' ? (
+            <VerifyView
+              offer={activeOffer}
+              cv={cv.state}
+              hasProfile={!!profile}
+              downloading={cvDownload.busy}
+              downloadError={cvDownload.error}
+              onRetry={cv.tailor}
+              onPreview={() => setView('cv')}
+              onDownload={(tailored) => activeOffer && cvDownload.download(tailored, activeOffer)}
+            />
           ) : (
             <section className="step-content">
               <h2>{STEP_LABELS[step]}</h2>
@@ -191,15 +233,25 @@ export function App() {
               ? offerUrl && (
                   <PrepareButton
                     analysis={analysis.state}
-                    onPrepare={() => (llm ? analysis.analyze() : setView('settings'))}
+                    onPrepare={prepare}
                     onNext={() => setStep('verify')}
                   />
                 )
-              : next && (
-                  <button type="button" className="primary" onClick={() => setStep(next)}>
-                    {STEP_LABELS[next]} →
-                  </button>
-                )}
+              : step === 'verify' && offerUrl && cv.state.status === 'unavailable'
+                ? analysis.state.status !== 'analyzing' && (
+                    <button
+                      type="button"
+                      className="primary"
+                      onClick={profile ? prepare : () => setView(llm ? 'profile' : 'settings')}
+                    >
+                      {profile ? 'Préparer ma candidature' : 'Créer mon profil'}
+                    </button>
+                  )
+                : next && (
+                    <button type="button" className="primary" onClick={() => setStep(next)}>
+                      {STEP_LABELS[next]} →
+                    </button>
+                  )}
             <button
               type="button"
               className="profile-chip"
