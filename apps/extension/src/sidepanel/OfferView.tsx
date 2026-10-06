@@ -14,7 +14,7 @@ function initial(text: string | undefined): string {
   return text?.trim().charAt(0).toUpperCase() || '✦';
 }
 
-function JobCard({ offer }: { offer: JobOffer }) {
+export function JobCard({ offer }: { offer: JobOffer }) {
   const details = [offer.company, offer.location].filter(Boolean).join(' · ');
   return (
     <div className="jobcard">

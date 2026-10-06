@@ -1007,8 +1007,285 @@ a.hint:hover {
   line-height: 1.45;
 }
 
+/* ---------- Vérifier et CV adapté ---------- */
+
+.big-tick {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  margin: 4px 0 -4px -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, var(--accent-soft) 0 55%, transparent 72%);
+}
+
+.big-tick span {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--grad);
+  box-shadow: var(--glow);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  animation: pop 0.6s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+.items {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 10px 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: fade-in 0.3s var(--ease);
+}
+
+.item-text {
+  display: grid;
+  flex: 1;
+  gap: 1px;
+  min-width: 0;
+}
+
+.item-text b {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.item-text small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.item--error .item-text small {
+  color: var(--ko);
+}
+
+.tick--error {
+  background: var(--ko);
+}
+
+.item-action {
+  padding: 5px 8px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.item-action:not(:disabled):hover {
+  background: var(--accent-soft);
+}
+
+.item-action:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.back {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.back:hover {
+  color: var(--fg);
+}
+
+.changes {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.changes li {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 10px;
+  animation: fade-in 0.35s var(--ease) both;
+}
+
+.changes li:nth-child(2) {
+  animation-delay: 0.05s;
+}
+
+.changes li:nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.changes li:nth-child(n + 4) {
+  animation-delay: 0.15s;
+}
+
+.changes b {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.changes li > div > span {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.changes s {
+  display: block;
+  margin-top: 4px;
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.cv-marker {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--grad);
+  box-shadow: 0 3px 8px -3px rgba(79, 70, 229, 0.6);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Aperçu du CV : une feuille blanche, quel que soit le thème, comme le PDF exporté. */
+.paper {
+  display: grid;
+  gap: 5px;
+  padding: 22px 20px;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow:
+    0 0 0 1px rgba(18, 18, 40, 0.06),
+    0 18px 40px -18px rgba(18, 18, 40, 0.35);
+  color: #333338;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 9.5px;
+  line-height: 1.5;
+  animation: fade-in 0.45s var(--ease);
+}
+
+.paper header {
+  display: grid;
+  gap: 2px;
+}
+
+.paper-name {
+  color: #111114;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.paper-role {
+  color: #26306b;
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.paper-contact {
+  color: #78787f;
+  font-size: 8.5px;
+  overflow-wrap: anywhere;
+}
+
+.paper h4 {
+  margin: 7px 0 1px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid #e5e5ea;
+  color: #26306b;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.paper p {
+  margin: 0;
+}
+
+.paper-entry {
+  display: grid;
+  gap: 1px;
+}
+
+.paper-entry + .paper-entry {
+  margin-top: 4px;
+}
+
+.paper-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.paper-row b {
+  color: #111114;
+  font-weight: 700;
+}
+
+.paper-row > span {
+  flex: none;
+  color: #8a8a92;
+  font-size: 8.5px;
+}
+
+.paper ul {
+  margin: 0;
+  padding-left: 13px;
+}
+
+.paper li::marker {
+  color: #26306b;
+}
+
+.cv-changed {
+  border-radius: 3px;
+  background: #efedff;
+  box-shadow: 0 0 0 2px #efedff;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.cv-changed .cv-marker {
+  width: 13px;
+  height: 13px;
+  margin-right: 4px;
+  font-size: 7.5px;
+  vertical-align: 1px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .analysis,
+  .big-tick span,
+  .item,
+  .changes li,
+  .paper,
   .skeleton,
   .onboard,
   .tick,
