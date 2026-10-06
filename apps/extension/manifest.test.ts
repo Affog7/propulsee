@@ -1,10 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { buildManifest } from './manifest';
+import { LLM_PROVIDERS, LLM_PROVIDER_INFO } from '@propulsee/shared';
+import { LLM_ORIGINS, buildManifest } from './manifest';
 
 describe('buildManifest', () => {
   it("autorise l'origine de l'API configurée", () => {
     const manifest = buildManifest('https://api.propulsee.example/v1');
-    expect(manifest.host_permissions).toEqual(['https://api.propulsee.example/*']);
+    expect(manifest.host_permissions).toContain('https://api.propulsee.example/*');
+  });
+
+  it('autorise les fournisseurs de LLM et le stockage des paramètres', () => {
+    const manifest = buildManifest('http://localhost:3000');
+    expect(manifest.permissions).toContain('storage');
+    expect(manifest.host_permissions).toEqual(
+      expect.arrayContaining([
+        'https://api.anthropic.com/*',
+        'https://api.openai.com/*',
+        'http://localhost:11434/*',
+      ]),
+    );
+  });
+
+  it('autorise exactement les fournisseurs déclarés dans @propulsee/shared', () => {
+    const origins = LLM_PROVIDERS.map((p) => new URL(LLM_PROVIDER_INFO[p].baseUrl).origin);
+    expect(LLM_ORIGINS).toEqual(origins);
   });
 
   it('ouvre le panneau latéral depuis sidepanel.html', () => {
