@@ -3,6 +3,7 @@ import {
   buildProfileExtractionPrompt,
   normalizeProfile,
   parseProfileResponse,
+  sameDocumentContent,
   type LlmSettings,
   type MasterProfile,
 } from '@propulsee/shared';
@@ -17,9 +18,15 @@ export async function loadProfile(): Promise<MasterProfile | null> {
   return raw ? normalizeProfile(raw) : null;
 }
 
-/** Un seul profil maître : chaque enregistrement remplace le précédent. */
+/**
+ * Un seul profil maître : chaque enregistrement remplace le précédent. La date ne change que si
+ * le contenu des documents change : une réponse au formulaire (salaire…) ne périme pas le CV.
+ */
 export async function saveProfile(profile: MasterProfile): Promise<MasterProfile> {
-  const saved = { ...profile, updatedAt: new Date().toISOString() };
+  const before = await loadProfile();
+  const updatedAt =
+    before && sameDocumentContent(before, profile) ? before.updatedAt : new Date().toISOString();
+  const saved = { ...profile, updatedAt };
   await chrome.storage.local.set({ [STORAGE_KEY]: saved });
   return saved;
 }

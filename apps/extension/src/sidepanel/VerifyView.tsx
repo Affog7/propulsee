@@ -32,7 +32,7 @@ export function changesLabel(count: number): string {
 
 type ItemStatus = 'working' | 'done' | 'error';
 
-function Item({
+export function Item({
   status,
   title,
   detail,

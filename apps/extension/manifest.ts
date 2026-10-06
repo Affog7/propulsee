@@ -32,5 +32,8 @@ export function buildManifest(apiUrl: string): chrome.runtime.ManifestV3 {
       // Sites d'offres : détecter l'offre et la lire, sans autre accès aux autres sites.
       ...jobSiteMatches(),
     ],
+    // Formulaires de candidature, sur n'importe quel site : demandé au premier remplissage
+    // (voir FORM_SITES dans src/lib/autofill-tab.ts), pas à l'installation.
+    optional_host_permissions: ['https://*/*'],
   };
 }

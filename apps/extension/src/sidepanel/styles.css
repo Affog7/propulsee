@@ -1353,8 +1353,74 @@ a.hint:hover {
   font-weight: 500;
 }
 
+/* ---------- Postuler ---------- */
+
+.contact--answers .qfield {
+  grid-template-columns: 150px 1fr;
+}
+
+.ask {
+  display: grid;
+  gap: 12px;
+  border-color: var(--accent-line);
+  animation: fade-in 0.3s var(--ease);
+}
+
+.ask .field > span {
+  font-size: 13px;
+}
+
+.ask .primary {
+  height: 40px;
+}
+
+.confirm {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #f0d7b0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fff8ec, #fffbf4);
+  animation: fade-in 0.3s var(--ease);
+}
+
+.confirm-title {
+  margin: 0;
+  color: #a8650a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.confirm-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.confirm-row small {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .confirm {
+    border-color: #4a3a1f;
+    background: #221c12;
+  }
+
+  .confirm-title {
+    color: #f0b45a;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .analysis,
+  .ask,
+  .confirm,
   .big-tick span,
   .item,
   .changes li,

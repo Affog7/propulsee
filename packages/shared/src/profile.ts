@@ -17,6 +17,19 @@ export interface ProfileEducation {
   end: string;
 }
 
+/** Autorisé à travailler dans le pays du poste, sans parrainage de visa. `''` : jamais demandé. */
+export type WorkAuthorization = '' | 'yes' | 'no';
+
+/**
+ * Réponses que les formulaires de candidature demandent sans qu'un CV les donne. Demandées au
+ * premier formulaire qui en a besoin, puis réutilisées : jamais à l'inscription.
+ */
+export interface ApplicationAnswers {
+  /** Prétentions salariales en texte libre, ex. « 65 000 – 75 000 € ». */
+  salary: string;
+  workAuthorization: WorkAuthorization;
+}
+
 /**
  * Profil maître : l'unique source de vérité sur le parcours de l'utilisateur, adaptée ensuite
  * à chaque offre. Un champ inconnu vaut `''` ou `[]`, jamais `undefined`, pour simplifier l'édition.
@@ -35,7 +48,9 @@ export interface MasterProfile {
   skills: string[];
   /** Langue et niveau en texte libre, ex. « Anglais (C1) ». */
   languages: string[];
-  /** Date ISO de la dernière modification. */
+  /** Hors CV et lettre : modifier ces réponses ne rend pas les documents périmés. */
+  answers: ApplicationAnswers;
+  /** Date ISO de la dernière modification du contenu des documents (tout sauf `answers`). */
   updatedAt: string;
 }
 
@@ -58,8 +73,13 @@ export function emptyProfile(): MasterProfile {
     education: [],
     skills: [],
     languages: [],
+    answers: emptyAnswers(),
     updatedAt: new Date(0).toISOString(),
   };
+}
+
+export function emptyAnswers(): ApplicationAnswers {
+  return { salary: '', workAuthorization: '' };
 }
 
 export function emptyExperience(): ProfileExperience {
@@ -169,8 +189,28 @@ export function normalizeProfile(raw: unknown): MasterProfile {
       .filter((e) => e.degree || e.school),
     skills: strList(data.skills),
     languages: strList(data.languages),
+    answers: normalizeAnswers(data.answers),
     updatedAt: str(data.updatedAt) || new Date(0).toISOString(),
   };
+}
+
+function normalizeAnswers(raw: unknown): ApplicationAnswers {
+  const data = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const auth = data.workAuthorization;
+  return {
+    salary: str(data.salary),
+    workAuthorization: auth === 'yes' || auth === 'no' ? auth : '',
+  };
+}
+
+/**
+ * Vrai si les deux profils donnent les mêmes CV et lettres : seules les réponses aux formulaires
+ * (ou la date) diffèrent. Enregistrer ces réponses ne doit pas relancer l'adaptation du CV.
+ */
+export function sameDocumentContent(a: MasterProfile, b: MasterProfile): boolean {
+  const content = (profile: MasterProfile) =>
+    JSON.stringify({ ...normalizeProfile(profile), answers: null, updatedAt: null });
+  return content(a) === content(b);
 }
 
 /**

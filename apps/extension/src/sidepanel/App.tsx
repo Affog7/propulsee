@@ -4,19 +4,22 @@ import {
   STEP_LABELS,
   cvFileName,
   documentFileName,
+  emptyAnswers,
   nextStep,
   profileInitials,
   type ApplicationStep,
+  type JobOffer,
   type LlmSettings,
   type MasterProfile,
   type TailoredCv,
 } from '@propulsee/shared';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { fetchHealth } from '../lib/api';
 import { downloadLetterPdf } from '../lib/cover-letter';
 import { downloadCvPdf } from '../lib/cv-pdf';
 import { loadLlmSettings } from '../lib/llm';
 import { loadProfile } from '../lib/profile';
+import { ApplyView } from './ApplyView';
 import { CvPreview } from './CvPreview';
 import { LetterView } from './LetterView';
 import { OfferView } from './OfferView';
@@ -24,6 +27,7 @@ import { ProfileView } from './ProfileView';
 import { SettingsView } from './SettingsView';
 import { VerifyView } from './VerifyView';
 import { useActiveJobOffer } from './use-active-job-offer';
+import { useAutofill, type AutofillState } from './use-autofill';
 import { useCopy } from './use-copy';
 import { useCoverLetter } from './use-cover-letter';
 import { useDownload } from './use-download';
@@ -46,6 +50,33 @@ function missingView(llm: LlmSettings | null, profile: MasterProfile | null): Vi
   if (!llm) return 'settings';
   if (!profile) return 'profile';
   return 'flow';
+}
+
+/** Bouton principal de « Postuler » : remplit le formulaire ouvert dans l'onglet. */
+function FillButton({
+  state,
+  documentsPending,
+  onFill,
+}: {
+  state: AutofillState;
+  /** CV ou lettre encore en préparation : on attend pour les joindre. */
+  documentsPending: boolean;
+  onFill: () => void;
+}) {
+  // Le panneau pose une question : son propre bouton complète le formulaire.
+  if (state.status === 'done' && state.result.missing.length > 0) return null;
+  if (state.status === 'filling' || documentsPending) {
+    return (
+      <button type="button" className="primary" disabled>
+        {documentsPending ? 'Je finis vos documents…' : 'Quelques secondes…'}
+      </button>
+    );
+  }
+  return (
+    <button type="button" className="primary" onClick={onFill}>
+      {state.status === 'done' ? 'Remplir à nouveau' : 'Remplir le formulaire'}
+    </button>
+  );
 }
 
 /** Bouton principal de « Préparer » : lance l'analyse, puis mène à « Vérifier ». */
@@ -88,12 +119,20 @@ function PrepareButton({
 
 export function App() {
   const offer = useActiveJobOffer();
-  const offerUrl = offer.status === 'found' ? offer.offer.url : null;
+  const found = offer.status === 'found' ? offer.offer : null;
   // Chaque nouvelle offre repart de « Préparer ».
   const [progress, setProgress] = useState<{ url: string | null; step: ApplicationStep }>({
     url: null,
     step: 'prepare',
   });
+  // Le formulaire de candidature s'ouvre souvent hors du site de l'offre (Greenhouse, site de
+  // l'entreprise…) : pendant « Postuler », le panneau garde l'offre à laquelle on postule.
+  const [lastOffer, setLastOffer] = useState<JobOffer | null>(null);
+  if (found && found !== lastOffer) setLastOffer(found);
+  const applyingElsewhere =
+    !found && !!lastOffer && progress.url === lastOffer.url && progress.step === 'apply';
+  const activeOffer = found ?? (applyingElsewhere ? lastOffer : null);
+  const offerUrl = activeOffer?.url ?? null;
   const step = progress.url === offerUrl ? progress.step : 'prepare';
   const setStep = (s: ApplicationStep) => setProgress({ url: offerUrl, step: s });
   const [api, setApi] = useState<ApiState>('checking');
@@ -102,7 +141,6 @@ export function App() {
   const [profile, setProfile] = useState<MasterProfile | null | undefined>(undefined);
   const [view, setView] = useState<View>('flow');
   const next = nextStep(step);
-  const activeOffer = offer.status === 'found' ? offer.offer : null;
   const analysis = useOfferAnalysis(activeOffer, llm ?? null, profile ?? null);
   // CV et lettre se préparent d'eux-mêmes après l'analyse, sauf pendant l'édition du profil.
   const documents = {
@@ -116,6 +154,17 @@ export function App() {
   const letter = useCoverLetter(documents);
   const download = useDownload();
   const clipboard = useCopy();
+  const onProfileSaved = useCallback((saved: MasterProfile) => setProfile(saved), []);
+  const autofill = useAutofill({
+    offer: activeOffer,
+    profile: profile ?? null,
+    cv: cv.state.status === 'done' ? cv.state.tailored : null,
+    letter: letter.state.status === 'done' ? letter.state.letter : null,
+    onProfileSaved,
+  });
+  const documentsPending = [cv.state.status, letter.state.status].some(
+    (s) => s === 'loading' || s === 'tailoring' || s === 'writing',
+  );
 
   function downloadCv(tailored: TailoredCv) {
     if (activeOffer) {
@@ -275,36 +324,56 @@ export function App() {
               onCopyLetter={clipboard.copy}
             />
           ) : (
-            <section className="step-content">
-              <h2>{STEP_LABELS[step]}</h2>
-              <p>Étape à implémenter.</p>
-            </section>
+            <ApplyView
+              offer={activeOffer}
+              hasProfile={!!profile}
+              state={autofill.state}
+              answers={profile?.answers ?? emptyAnswers()}
+              onAnswer={autofill.fill}
+            />
           )}
 
           <div className="sticky-footer">
-            {step === 'prepare'
-              ? offerUrl && (
-                  <PrepareButton
-                    analysis={analysis.state}
-                    onPrepare={prepare}
-                    onNext={() => setStep('verify')}
+            {step === 'apply'
+              ? offerUrl &&
+                (profile ? (
+                  <FillButton
+                    state={autofill.state}
+                    documentsPending={documentsPending}
+                    onFill={() => autofill.fill()}
                   />
-                )
-              : step === 'verify' && offerUrl && cv.state.status === 'unavailable'
-                ? analysis.state.status !== 'analyzing' && (
-                    <button
-                      type="button"
-                      className="primary"
-                      onClick={profile ? prepare : () => setView(llm ? 'profile' : 'settings')}
-                    >
-                      {profile ? 'Préparer ma candidature' : 'Créer mon profil'}
-                    </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={() => setView(llm ? 'profile' : 'settings')}
+                  >
+                    Créer mon profil
+                  </button>
+                ))
+              : step === 'prepare'
+                ? offerUrl && (
+                    <PrepareButton
+                      analysis={analysis.state}
+                      onPrepare={prepare}
+                      onNext={() => setStep('verify')}
+                    />
                   )
-                : next && (
-                    <button type="button" className="primary" onClick={() => setStep(next)}>
-                      {STEP_LABELS[next]} →
-                    </button>
-                  )}
+                : step === 'verify' && offerUrl && cv.state.status === 'unavailable'
+                  ? analysis.state.status !== 'analyzing' && (
+                      <button
+                        type="button"
+                        className="primary"
+                        onClick={profile ? prepare : () => setView(llm ? 'profile' : 'settings')}
+                      >
+                        {profile ? 'Préparer ma candidature' : 'Créer mon profil'}
+                      </button>
+                    )
+                  : next && (
+                      <button type="button" className="primary" onClick={() => setStep(next)}>
+                        {STEP_LABELS[next]} →
+                      </button>
+                    )}
             <button
               type="button"
               className="profile-chip"

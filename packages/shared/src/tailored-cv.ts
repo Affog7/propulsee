@@ -2,8 +2,8 @@ import type { JobAnalysis } from './job-analysis';
 import type { JobOffer } from './job-offer';
 import type { MasterProfile, ProfileExperience } from './profile';
 
-/** Contenu d'un CV : le profil maître sans ses métadonnées. */
-export type CvContent = Omit<MasterProfile, 'updatedAt'>;
+/** Contenu d'un CV : le profil maître sans ses métadonnées ni ses réponses aux formulaires. */
+export type CvContent = Omit<MasterProfile, 'updatedAt' | 'answers'>;
 
 /** Langue des titres de section du CV (celle du profil). */
 export type CvLanguage = 'fr' | 'en';
@@ -208,7 +208,9 @@ export function parseTailoredCvResponse(
   const data = json as Record<string, unknown>;
   if (!('summary' in data) && !('experiences' in data) && !('skills' in data)) return null;
 
-  const { updatedAt, ...base } = profile;
+  // Le CV ne reprend ni la date du profil ni ses réponses aux formulaires (salaire…).
+  const { updatedAt, answers, ...base } = profile;
+  void answers;
   const lang: CvLanguage = data.lang === 'en' ? 'en' : 'fr';
   const changes: CvChange[] = [];
 
