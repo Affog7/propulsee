@@ -875,6 +875,23 @@ a.hint:hover {
   color: #111114;
 }
 
+.company-logo--any {
+  background: var(--accent);
+}
+
+.sites-state {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sites .link.sites-state {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .sites {
   margin: 0;
   padding: 0;

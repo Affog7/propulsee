@@ -1,5 +1,6 @@
 import type { JobAnalysis, JobOffer } from '@propulsee/shared';
 import { JOB_SITES, JOB_SITE_INFO } from '../lib/job-sites';
+import { requestAnySiteAccess } from '../lib/site-access';
 import type { ActiveJobOffer } from './use-active-job-offer';
 import type { OfferAnalysis } from './use-offer-analysis';
 
@@ -176,7 +177,7 @@ export function OfferView({ state, analysis, hasProfile }: Props) {
         <FoundOffer
           key={state.offer.url}
           offer={state.offer}
-          siteLabel={JOB_SITE_INFO[state.site].label}
+          siteLabel={state.source}
           analysis={analysis}
           hasProfile={hasProfile}
         />
@@ -186,7 +187,7 @@ export function OfferView({ state, analysis, hasProfile }: Props) {
       return (
         <section className="onboard" aria-busy="true">
           <div>
-            <div className="eyebrow">✦ {JOB_SITE_INFO[state.site].label}</div>
+            <div className="eyebrow">✦ {state.source}</div>
             <h2 className="title">Je lis l’offre…</h2>
           </div>
           <JobCardSkeleton />
@@ -197,7 +198,7 @@ export function OfferView({ state, analysis, hasProfile }: Props) {
       return (
         <section className="onboard">
           <div>
-            <div className="eyebrow">✦ {JOB_SITE_INFO[state.site].label}</div>
+            <div className="eyebrow">✦ {state.source}</div>
             <h2 className="title">Ouvrez une offre</h2>
           </div>
           <p className="lead">
@@ -214,7 +215,9 @@ export function OfferView({ state, analysis, hasProfile }: Props) {
             <h2 className="title">Ouvrez une offre d’emploi</h2>
           </div>
           <p className="lead">
-            Je la détecte toute seule sur ces sites, puis je prépare votre candidature.
+            {state.anySite
+              ? 'Je la détecte toute seule, sur n’importe quel site, puis je prépare votre candidature.'
+              : 'Je la détecte toute seule sur ces sites, puis je prépare votre candidature.'}
           </p>
           <ul className="sites">
             {JOB_SITES.map((site) => (
@@ -225,7 +228,31 @@ export function OfferView({ state, analysis, hasProfile }: Props) {
                 {JOB_SITE_INFO[site].label}
               </li>
             ))}
+            <li>
+              <span className="company-logo company-logo--any" aria-hidden="true">
+                ✦
+              </span>
+              Tous les autres sites
+              {state.anySite ? (
+                <span className="sites-state">Activé</span>
+              ) : (
+                <button
+                  type="button"
+                  className="link sites-state"
+                  // Chrome demande l'accès une fois ; le panneau relit l'onglet dès l'accord.
+                  onClick={() => void requestAnySiteAccess()}
+                >
+                  Activer
+                </button>
+              )}
+            </li>
           </ul>
+          {!state.anySite && (
+            <p className="hint">
+              Seules les pages qui ressemblent à une offre sont envoyées à l’IA ; les autres ne
+              quittent pas votre navigateur.
+            </p>
+          )}
           <p className="hint">Gardez ce panneau ouvert : il suit vos onglets.</p>
         </section>
       );

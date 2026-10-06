@@ -14,17 +14,11 @@ import {
   type AutofillPlan,
   type FreeQuestionField,
 } from '../lib/autofill';
-import {
-  activeTabId,
-  fillForm,
-  inspectTab,
-  requestFormAccess,
-  scanForm,
-  toBase64,
-} from '../lib/autofill-tab';
+import { activeTabId, fillForm, inspectTab, scanForm, toBase64 } from '../lib/autofill-tab';
 import { buildLetterPdf } from '../lib/cover-letter';
 import { buildCvPdf } from '../lib/cv-pdf';
 import { saveProfile } from '../lib/profile';
+import { requestAnySiteAccess } from '../lib/site-access';
 
 export type AutofillState =
   | { status: 'idle' }
@@ -81,7 +75,7 @@ export function useAutofill({ offer, profile, cv, letter, onProfileSaved, onQues
     (answers?: Partial<ApplicationAnswers>) => {
       if (!offer || !profile || state.status === 'filling') return;
       // Avant tout `await` : Chrome n'accepte la demande d'accès que pendant le clic.
-      const access = requestFormAccess();
+      const access = requestAnySiteAccess();
       const target = offer.url;
       const from = answers ? { ...profile, answers: { ...profile.answers, ...answers } } : profile;
       set(target, { status: 'filling' });
