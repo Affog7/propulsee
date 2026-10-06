@@ -109,3 +109,13 @@ export function detectJobSite(url: string | undefined): JobSite | null {
 export function jobSiteMatches(): string[] {
   return JOB_SITES.map((site) => `https://*.${JOB_SITE_INFO[site].domain}/*`);
 }
+
+/** Vrai si `url` est sur un site d'offres connu, qu'elle affiche une offre ou non. */
+export function isJobSiteUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  try {
+    return siteOf(new URL(url).hostname) !== null;
+  } catch {
+    return false;
+  }
+}

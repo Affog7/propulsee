@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectJobSite, jobSiteMatches } from './job-sites';
+import { detectJobSite, isJobSiteUrl, jobSiteMatches } from './job-sites';
 
 describe('detectJobSite', () => {
   it.each([
@@ -41,5 +41,21 @@ describe('jobSiteMatches', () => {
       'https://*.indeed.com/*',
       'https://*.welcometothejungle.com/*',
     ]);
+  });
+});
+
+describe('isJobSiteUrl', () => {
+  it('reconnaît les sites connus, même hors d’une offre', () => {
+    expect(isJobSiteUrl('https://www.linkedin.com/feed/')).toBe(true);
+    expect(isJobSiteUrl('https://fr.indeed.com/')).toBe(true);
+  });
+
+  it.each([
+    'https://careers.acme.com/jobs/42',
+    'https://notlinkedin.com/',
+    'pas une url',
+    undefined,
+  ])('ne confond pas %s avec un site connu', (url) => {
+    expect(isJobSiteUrl(url)).toBe(false);
   });
 });

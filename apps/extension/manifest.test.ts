@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LLM_PROVIDERS, LLM_PROVIDER_INFO } from '@propulsee/shared';
 import { LLM_ORIGINS, buildManifest } from './manifest';
-import { FORM_SITES } from './src/lib/autofill-tab';
+import { ANY_SITE } from './src/lib/site-access';
 
 describe('buildManifest', () => {
   it("autorise l'origine de l'API configurée", () => {
@@ -34,9 +34,9 @@ describe('buildManifest', () => {
     );
   });
 
-  it('ne demande l’accès aux formulaires des autres sites qu’au premier remplissage', () => {
+  it('ne demande l’accès aux autres sites qu’au clic, pas à l’installation', () => {
     const manifest = buildManifest('http://localhost:3000');
-    expect(manifest.optional_host_permissions).toEqual(FORM_SITES);
+    expect(manifest.optional_host_permissions).toEqual(ANY_SITE);
     expect(manifest.host_permissions).not.toContain('https://*/*');
   });
 

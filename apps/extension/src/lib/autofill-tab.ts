@@ -2,17 +2,6 @@ import { collectFormFields, fillFormFields, type FieldFill } from './form-fields
 import type { FormField, FrameFill } from './autofill';
 import { inspectForm, submitForm, type FormSnapshot, type SubmitOutcome } from './form-submit';
 
-/**
- * Le formulaire de candidature peut être sur n'importe quel site (Greenhouse, Lever, site de
- * l'entreprise…) : l'accès est demandé une fois, au premier remplissage, pas à l'installation.
- */
-export const FORM_SITES = ['https://*/*'];
-
-/** Demande l'accès aux sites des formulaires. À appeler au clic : Chrome exige un geste. */
-export function requestFormAccess(): Promise<boolean> {
-  return chrome.permissions.request({ origins: FORM_SITES }).catch(() => false);
-}
-
 /** Onglet affiché à côté du panneau. */
 export async function activeTabId(): Promise<number | null> {
   const win = await chrome.windows.getCurrent();
