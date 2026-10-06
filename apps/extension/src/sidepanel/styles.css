@@ -1469,11 +1469,226 @@ a.hint:hover {
   }
 }
 
+/* ---------- Suivi des candidatures ---------- */
+
+.footer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+
+.count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-chip {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-chip::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: 1px;
+}
+
+.status-chip--interview {
+  background: var(--ok-soft);
+  color: var(--ok-fg);
+}
+
+.status-chip--rejected {
+  color: var(--faint);
+}
+
+/* Rappel discret sur une offre déjà envoyée. */
+.already {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  animation: fade-in 0.3s var(--ease);
+}
+
+.already small {
+  display: block;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.already:hover {
+  border-color: var(--accent-line);
+}
+
+.applications-summary {
+  margin-top: 4px;
+}
+
+.applications {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.application {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: fade-in 0.3s var(--ease);
+}
+
+.application[data-open] {
+  border-color: var(--accent-line);
+}
+
+.application-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.application-row:hover {
+  background: var(--surface-2);
+}
+
+.sent {
+  display: grid;
+  gap: 12px;
+  padding: 2px 12px 14px;
+}
+
+.sent .segment {
+  padding: 5px 4px;
+  font-size: 12.5px;
+}
+
+.sent-files {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  list-style: none;
+}
+
+.sent-files li {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 8px 6px 8px 12px;
+}
+
+.sent-files li + li {
+  border-top: 1px solid var(--border);
+}
+
+.sent-files .item-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sent-answers {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.sent-answers dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sent-answers dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+.sent-offer summary {
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.sent-offer p {
+  max-height: 220px;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  overflow-y: auto;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.sent-links {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+}
+
+.sent-links a {
+  text-decoration: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .analysis,
   .ask,
   .confirm,
   .notice,
+  .already,
+  .application,
   .big-tick span,
   .item,
   .changes li,

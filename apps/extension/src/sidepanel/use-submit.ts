@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { activeTabId, inspectTab, submitTab } from '../lib/autofill-tab';
 
 export type SubmitState =
@@ -22,14 +22,21 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Envoi de la candidature, au clic de l'utilisateur et jamais autrement. L'état est gardé par
- * offre : l'onglet peut quitter le site de l'offre pour celui du formulaire.
+ * offre : l'onglet peut quitter le site de l'offre pour celui du formulaire. `onSent` est
+ * appelé dès que l'envoi est constaté (ou confirmé par l'utilisateur).
  */
-export function useSubmit(url: string | null) {
+export function useSubmit(url: string | null, onSent?: (url: string) => void) {
   const [byUrl, setByUrl] = useState<Record<string, SubmitState>>({});
   const state = (url && byUrl[url]) || IDLE;
+  // L'envoi se termine après plusieurs secondes : on prévient avec ce que sait le dernier rendu.
+  const sentRef = useRef(onSent);
+  useEffect(() => {
+    sentRef.current = onSent;
+  });
 
   const set = useCallback((target: string, next: SubmitState) => {
     setByUrl((all) => ({ ...all, [target]: next }));
+    if (next.status === 'sent') sentRef.current?.(target);
   }, []);
 
   /** `prepare` reporte d'abord les dernières retouches ; `false` arrête l'envoi. */

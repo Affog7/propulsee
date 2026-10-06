@@ -5,8 +5,10 @@ import {
   cvFileName,
   documentFileName,
   emptyAnswers,
+  findApplication,
   nextStep,
   profileInitials,
+  sentDateLabel,
   type ApplicationStep,
   type JobOffer,
   type LlmSettings,
@@ -19,7 +21,8 @@ import { downloadLetterPdf } from '../lib/cover-letter';
 import { downloadCvPdf } from '../lib/cv-pdf';
 import { loadLlmSettings } from '../lib/llm';
 import { loadProfile } from '../lib/profile';
-import { ApplyView } from './ApplyView';
+import { ApplicationsView, StatusChip } from './ApplicationsView';
+import { ApplyView, confirmedAnswers } from './ApplyView';
 import { CvPreview } from './CvPreview';
 import { LetterView } from './LetterView';
 import { OfferView } from './OfferView';
@@ -27,6 +30,7 @@ import { ProfileView } from './ProfileView';
 import { SettingsView } from './SettingsView';
 import { VerifyView } from './VerifyView';
 import { useActiveJobOffer } from './use-active-job-offer';
+import { useApplications } from './use-applications';
 import { useAutofill, type AutofillState } from './use-autofill';
 import { useCopy } from './use-copy';
 import { useCoverLetter } from './use-cover-letter';
@@ -45,7 +49,7 @@ const API_LABELS: Record<ApiState, string> = {
   offline: 'API hors ligne',
 };
 
-type View = 'flow' | 'settings' | 'profile' | 'cv' | 'letter';
+type View = 'flow' | 'settings' | 'profile' | 'cv' | 'letter' | 'applications';
 
 /** Écran à ouvrir d'office : ce qui manque encore, dans l'ordre (LLM puis profil). */
 function missingView(llm: LlmSettings | null, profile: MasterProfile | null): View {
@@ -196,7 +200,29 @@ export function App() {
   const documentsPending = [cv.state.status, letter.state.status].some(
     (s) => s === 'loading' || s === 'tailoring' || s === 'writing',
   );
-  const submit = useSubmit(offerUrl);
+  const applications = useApplications();
+  const already = findApplication(applications.list, offerUrl);
+
+  /** Envoi constaté : la copie de ce qui est parti rejoint le suivi, sans rien demander. */
+  function recordSent(target: string) {
+    if (activeOffer?.url !== target || autofill.state.status !== 'done') return;
+    const { result, attached, declarations } = autofill.state;
+    applications.record({
+      offer: activeOffer,
+      sentAt: new Date().toISOString(),
+      status: 'sent',
+      cv: attached.cv,
+      letter: attached.letter,
+      answers: free.state.items
+        .filter((item) => item.inserted)
+        .map((item) => ({ question: item.question.label, answer: item.text.trim() })),
+      confirmed: confirmedAnswers(result.used, profile?.answers ?? emptyAnswers()),
+      declarations,
+      fields: result.fields,
+    });
+  }
+
+  const submit = useSubmit(offerUrl, recordSent);
 
   function fill() {
     setStep('apply');
@@ -316,6 +342,16 @@ export function App() {
           onDownload={downloadLetter}
           onClose={() => setView('flow')}
         />
+      ) : view === 'applications' ? (
+        <ApplicationsView
+          list={applications.list}
+          focus={offerUrl}
+          copied={clipboard.copied}
+          onCopy={clipboard.copy}
+          onStatus={applications.setStatus}
+          onForget={applications.forget}
+          onClose={() => setView('flow')}
+        />
       ) : view === 'profile' && llm ? (
         <ProfileView
           llm={llm}
@@ -341,6 +377,17 @@ export function App() {
               </li>
             ))}
           </ol>
+
+          {already && !(step === 'apply' && submit.state.status === 'sent') && (
+            // Une offre, une candidature : on rappelle ce qui est déjà parti.
+            <button type="button" className="already" onClick={() => setView('applications')}>
+              <span>
+                Déjà postulé · {sentDateLabel(already.sentAt)}
+                <small>Voir ce que j’ai envoyé</small>
+              </span>
+              <StatusChip status={already.status} />
+            </button>
+          )}
 
           {step === 'prepare' ? (
             <OfferView state={offer} analysis={analysis.state} hasProfile={!!profile} />
@@ -374,6 +421,7 @@ export function App() {
                 submit.reset();
                 autofill.fill();
               }}
+              onShowApplications={() => setView('applications')}
             />
           )}
 
@@ -446,16 +494,30 @@ export function App() {
                 </button>
               )
             )}
-            <button
-              type="button"
-              className="profile-chip"
-              onClick={() => setView(llm ? 'profile' : 'settings')}
-            >
-              <span className="avatar avatar--small" aria-hidden="true">
-                {profileInitials(profile?.fullName ?? '') || '✦'}
-              </span>
-              {profile?.fullName ? `Profil de ${profile.fullName}` : 'Créer mon profil'}
-            </button>
+            <div className="footer-chips">
+              <button
+                type="button"
+                className="profile-chip"
+                onClick={() => setView(llm ? 'profile' : 'settings')}
+              >
+                <span className="avatar avatar--small" aria-hidden="true">
+                  {profileInitials(profile?.fullName ?? '') || '✦'}
+                </span>
+                {profile?.fullName ? `Profil de ${profile.fullName}` : 'Créer mon profil'}
+              </button>
+              {applications.list.length > 0 && (
+                <button
+                  type="button"
+                  className="profile-chip"
+                  onClick={() => setView('applications')}
+                >
+                  <span className="count" aria-hidden="true">
+                    {applications.list.length}
+                  </span>
+                  Mes candidatures
+                </button>
+              )}
+            </div>
           </div>
         </>
       )}

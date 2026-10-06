@@ -38,6 +38,8 @@ export type AutofillState =
       letterName: string | null;
       /** Déclarations obligatoires du site : cochées seulement au clic d'envoi. */
       declarations: string[];
+      /** PDF effectivement joints au formulaire : gardés dans le suivi à l'envoi. */
+      attached: { cv: AttachedFile | null; letter: (AttachedFile & { text: string }) | null };
     }
   | { status: 'error'; error: string };
 
@@ -118,6 +120,10 @@ export function useAutofill({ offer, profile, cv, letter, onProfileSaved, onQues
             cvName,
             letterName,
             declarations: form?.declarations ?? [],
+            attached: {
+              cv: plan.cv ? cvFile : null,
+              letter: plan.letter ? letterFile : null,
+            },
           });
           onQuestions(target, plan.questions);
         } catch {
