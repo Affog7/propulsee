@@ -78,6 +78,13 @@ describe('collectFormFields', () => {
     expect(byLabel('Email').writable).toBe(false);
   });
 
+  it('lit la limite de caractères des zones de texte', () => {
+    page(`
+      <textarea aria-label="Pourquoi nous ?" maxlength="500"></textarea>
+      <input aria-label="Ville">`);
+    expect(collectFormFields().map((f) => f.maxLength)).toEqual([500, 0]);
+  });
+
   it('garde les champs fichier, même masqués derrière un bouton', () => {
     page(`<label>Resume <input type="file" accept=".pdf" style="display:none"></label>`);
     expect(collectFormFields()[0]).toMatchObject({ kind: 'file', accept: '.pdf' });

@@ -1,5 +1,6 @@
 export * from './api';
 export * from './cover-letter';
+export * from './free-answers';
 export * from './job-analysis';
 export * from './job-offer';
 export * from './llm';

@@ -1,4 +1,4 @@
-import { profileDigest, type JobAnalysis } from './job-analysis';
+import { analysisDigest, profileDigest, type JobAnalysis } from './job-analysis';
 import type { JobOffer } from './job-offer';
 import type { MasterProfile } from './profile';
 import type { CvLanguage } from './tailored-cv';
@@ -55,16 +55,7 @@ export function buildCoverLetterPrompt(
   format: CoverLetterFormat,
 ): string {
   const header = [offer.title, offer.company, offer.location].filter(Boolean).join(' · ');
-  const expectations = [
-    analysis.summary,
-    analysis.missions.length ? `Missions : ${analysis.missions.join(' ; ')}` : '',
-    analysis.skills.length
-      ? `Compétences clés : ${analysis.skills.map((s) => s.name).join(', ')}`
-      : '',
-    analysis.expectations.length ? `Attentes : ${analysis.expectations.join(' ; ')}` : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
+  const expectations = analysisDigest(analysis);
 
   return `Tu rédiges pour un candidat ${format === 'message' ? 'un message à un recruteur' : 'une lettre de motivation'}, prête à envoyer.
 

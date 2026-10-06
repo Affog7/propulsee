@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import type { AnswerKey } from '../lib/autofill';
 import { JobCard } from './OfferView';
 import type { AutofillState } from './use-autofill';
+import type { FreeAnswersState } from './use-free-answers';
 import { Item } from './VerifyView';
 
 interface Props {
@@ -12,6 +13,15 @@ interface Props {
   answers: ApplicationAnswers;
   /** Réponses données (ou corrigées) dans le panneau : le formulaire est rempli à nouveau. */
   onAnswer: (answers: Partial<ApplicationAnswers>) => void;
+  free: FreeAnswersActions;
+}
+
+/** Réponses proposées aux questions libres, et ce qu'on peut en faire. */
+export interface FreeAnswersActions {
+  state: FreeAnswersState;
+  edit: (label: string, text: string) => void;
+  rewrite: (label?: string) => void;
+  insert: () => void;
 }
 
 const AUTH_LABELS: Record<Exclude<WorkAuthorization, ''>, string> = { yes: 'Oui', no: 'Non' };
@@ -142,33 +152,141 @@ function ConfirmCard({
   );
 }
 
+function AnswerSkeleton() {
+  return (
+    <div className="qa-skeleton" aria-hidden="true">
+      {[100, 94, 62].map((width) => (
+        <span key={width} className="skeleton skeleton-line" style={{ width: `${width}%` }} />
+      ))}
+    </div>
+  );
+}
+
+function answersLabel(count: number): string {
+  return count > 1 ? `Insérer mes ${count} réponses` : 'Insérer ma réponse';
+}
+
+/**
+ * Questions libres du formulaire : une réponse proposée pour chacune, à partir du profil et de
+ * l'offre, modifiable sur place. Un clic les insère toutes ; une réponse vidée est laissée de côté.
+ */
+function FreeAnswersCard({ free }: { free: FreeAnswersActions }) {
+  const { items, error, inserting, inserted } = free.state;
+  const writing = items.some((item) => item.writing);
+  const ready = items.filter((item) => item.text.trim() !== '').length;
+  return (
+    <section className="card ask qa-card" aria-busy={writing || undefined}>
+      <h3 className="cap">
+        {items.length > 1 ? `${items.length} questions du formulaire` : 'Question du formulaire'}
+      </h3>
+      {items.map(({ question, text, writing: busy }) => {
+        const over = question.maxLength > 0 && text.length > question.maxLength;
+        return (
+          <div key={question.label} className="qa">
+            <div className="qa-head">
+              <span className="qa-question" id={`qa-${question.index}`}>
+                {question.label}
+              </span>
+              {!busy && (
+                <button
+                  type="button"
+                  className="link qa-rewrite"
+                  onClick={() => free.rewrite(question.label)}
+                >
+                  {text ? 'Réécrire' : 'Proposer'}
+                </button>
+              )}
+            </div>
+            {busy ? (
+              <AnswerSkeleton />
+            ) : (
+              <textarea
+                className="qa-text"
+                aria-labelledby={`qa-${question.index}`}
+                value={text}
+                spellCheck
+                placeholder="Rien dans votre profil pour y répondre : à vous de l’écrire."
+                onChange={(e) => free.edit(question.label, e.target.value)}
+              />
+            )}
+            {!busy && question.maxLength > 0 && (
+              <small className={over ? 'qa-count qa-count--over' : 'qa-count'}>
+                {text.length} / {question.maxLength}
+              </small>
+            )}
+          </div>
+        );
+      })}
+      {error && (
+        <p className="form-error" role="alert">
+          {error}{' '}
+          {!writing && items.some((item) => !item.text) && (
+            <button type="button" className="link" onClick={() => free.rewrite()}>
+              Réessayer
+            </button>
+          )}
+        </p>
+      )}
+      <button
+        type="button"
+        className="primary"
+        disabled={writing || inserting || inserted || ready === 0}
+        onClick={free.insert}
+      >
+        {writing
+          ? 'J’écris vos réponses…'
+          : inserting
+            ? 'Quelques secondes…'
+            : inserted
+              ? ready > 1
+                ? 'Réponses insérées ✓'
+                : 'Réponse insérée ✓'
+              : answersLabel(ready)}
+      </button>
+      <p className="hint">
+        {inserted
+          ? 'Une retouche ici ? Insérez-la à nouveau.'
+          : 'Tirées de votre profil et de l’offre. Relisez, retouchez si besoin.'}
+      </p>
+    </section>
+  );
+}
+
 function Filled({
   state,
   answers,
   onAnswer,
+  free,
 }: {
   state: Extract<AutofillState, { status: 'done' }>;
   answers: ApplicationAnswers;
   onAnswer: Props['onAnswer'];
+  free: FreeAnswersActions;
 }) {
   const [editing, setEditing] = useState(false);
   const { result, cvName, letterName } = state;
   const asking = result.missing.length > 0;
+  const questions = free.state.items.length;
+  const reviewing = questions > 0 && !free.state.inserted;
   return (
     <section className="onboard">
-      {!asking && (
+      {!asking && !reviewing && (
         <span className="big-tick" aria-hidden="true">
           <span>✓</span>
         </span>
       )}
       <div>
-        <div className="eyebrow">✦ {asking ? 'Presque prêt' : 'Prêt à envoyer'}</div>
+        <div className="eyebrow">✦ {asking || reviewing ? 'Presque prêt' : 'Prêt à envoyer'}</div>
         <h2 className="title">
           {asking
             ? result.missing.length > 1
               ? 'Deux réponses et c’est prêt'
               : 'Une dernière réponse'
-            : 'Formulaire rempli, à vous de l’envoyer'}
+            : reviewing
+              ? questions > 1
+                ? 'Relisez mes réponses aux questions'
+                : 'Relisez ma réponse à la question'
+              : 'Formulaire rempli, à vous de l’envoyer'}
         </h2>
       </div>
       <ul className="items">
@@ -176,11 +294,24 @@ function Filled({
         {result.letter && (
           <Item status="done" title="Lettre jointe" detail={letterName ?? 'Lettre de motivation'} />
         )}
-        <Item
-          status={result.fields > 0 ? 'done' : 'error'}
-          title="Formulaire"
-          detail={fieldsLabel(result.fields)}
-        />
+        {(result.fields > 0 || questions === 0) && (
+          <Item
+            status={result.fields > 0 ? 'done' : 'error'}
+            title="Formulaire"
+            detail={fieldsLabel(result.fields)}
+          />
+        )}
+        {free.state.inserted && (
+          <Item
+            status="done"
+            title="Questions libres"
+            detail={
+              free.state.insertedCount > 1
+                ? `${free.state.insertedCount} réponses insérées`
+                : 'Réponse insérée'
+            }
+          />
+        )}
       </ul>
       {asking || editing ? (
         <AnswersCard
@@ -199,6 +330,7 @@ function Filled({
           <ConfirmCard used={result.used} answers={answers} onEdit={() => setEditing(true)} />
         )
       )}
+      {questions > 0 && <FreeAnswersCard free={free} />}
       <p className="hint">
         Relisez le formulaire, puis envoyez-le vous-même : je n’envoie jamais rien sans vous.
       </p>
@@ -207,7 +339,7 @@ function Filled({
 }
 
 /** Étape « Postuler » : le formulaire de candidature rempli en un clic, jamais envoyé seul. */
-export function ApplyView({ offer, hasProfile, state, answers, onAnswer }: Props) {
+export function ApplyView({ offer, hasProfile, state, answers, onAnswer, free }: Props) {
   if (!offer) {
     return (
       <section className="onboard">
@@ -222,7 +354,7 @@ export function ApplyView({ offer, hasProfile, state, answers, onAnswer }: Props
 
   switch (state.status) {
     case 'done':
-      return <Filled state={state} answers={answers} onAnswer={onAnswer} />;
+      return <Filled state={state} answers={answers} onAnswer={onAnswer} free={free} />;
 
     case 'filling':
       return (

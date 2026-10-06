@@ -1,4 +1,4 @@
-import type { ApplicationAnswers, MasterProfile } from '@propulsee/shared';
+import type { ApplicationAnswers, FreeQuestion, MasterProfile } from '@propulsee/shared';
 import type { FieldFill, RawFormField } from './form-fields';
 
 /** Ce qu'un champ du formulaire demande. */
@@ -48,6 +48,12 @@ export interface AutofillSources {
 
 export type AnswerKey = keyof ApplicationAnswers;
 
+/** Question libre repérée dans le formulaire, à laquelle le panneau propose une réponse. */
+export interface FreeQuestionField extends FreeQuestion {
+  frameId: number;
+  index: number;
+}
+
 export interface AutofillPlan {
   fills: FrameFill[];
   /** Champs remplis (fichiers exceptés). */
@@ -58,6 +64,8 @@ export interface AutofillPlan {
   used: AnswerKey[];
   /** Questions du formulaire auxquelles le profil ne sait pas encore répondre. */
   missing: AnswerKey[];
+  /** Questions libres laissées vides : le panneau propose des réponses, à relire avant insertion. */
+  questions: FreeQuestionField[];
 }
 
 /** Minuscules, sans accents ni ponctuation : `first_name` → `first name`. */
@@ -138,6 +146,18 @@ export function fieldPurpose(field: RawFormField): FieldPurpose | null {
   if (field.kind === 'email') return 'email';
   if (field.kind === 'tel') return 'phone';
   return purpose;
+}
+
+/**
+ * Question libre : une zone de texte, ou un champ d'une ligne dont le libellé est une vraie
+ * question (« How did you hear about us? »). Un champ sans libellé ne se devine pas.
+ */
+export function isFreeQuestion(field: RawFormField): boolean {
+  const label = field.label.trim();
+  if (label.length < 6) return false;
+  if (field.kind === 'textarea') return true;
+  if (field.kind !== 'text') return false;
+  return label.includes('?') || normalize(label).split(' ').length >= 6;
 }
 
 function isFrench(text: string): boolean {
@@ -238,8 +258,9 @@ function textValue(purpose: FieldPurpose, field: RawFormField, profile: MasterPr
 }
 
 /**
- * Ce qu'on écrit dans chaque champ. On ne touche ni aux questions libres, ni aux cases à
- * cocher (déclarations, consentements) : l'utilisateur relit et envoie lui-même.
+ * Ce qu'on écrit dans chaque champ. Les questions libres sont seulement relevées : leurs
+ * réponses, proposées dans le panneau, n'y vont qu'une fois relues. On ne touche pas aux cases
+ * à cocher (déclarations, consentements) : l'utilisateur relit et envoie lui-même.
  */
 export function planAutofill(fields: FormField[], sources: AutofillSources): AutofillPlan {
   const { profile, cv, letter } = sources;
@@ -255,6 +276,7 @@ export function planAutofill(fields: FormField[], sources: AutofillSources): Aut
     letter: false,
     used: [],
     missing: [],
+    questions: [],
   };
   const flag = (list: AnswerKey[], key: AnswerKey) => {
     if (!list.includes(key)) list.push(key);
@@ -266,7 +288,15 @@ export function planAutofill(fields: FormField[], sources: AutofillSources): Aut
       purpose = 'resume';
     }
     if (purpose === 'name' && asksFirstName) purpose = 'lastName';
-    if (!purpose) return;
+    if (!purpose) {
+      if (field.writable && isFreeQuestion(field)) {
+        const { frameId, index, maxLength } = field;
+        // « Pourquoi nous ? * » : l'astérisque des champs obligatoires n'apporte rien ici.
+        const label = field.label.replace(/\s*\*+$/, '');
+        plan.questions.push({ frameId, index, label, maxLength });
+      }
+      return;
+    }
 
     const answer: AnswerKey | null =
       purpose === 'salary'
