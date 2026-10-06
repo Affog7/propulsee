@@ -8,7 +8,12 @@ import {
   type TailoredCv,
 } from '@propulsee/shared';
 import { useCallback, useState } from 'react';
-import { planAutofill, type AttachedFile, type AutofillPlan } from '../lib/autofill';
+import {
+  planAutofill,
+  type AttachedFile,
+  type AutofillPlan,
+  type FreeQuestionField,
+} from '../lib/autofill';
 import { activeTabId, fillForm, requestFormAccess, scanForm, toBase64 } from '../lib/autofill-tab';
 import { buildLetterPdf } from '../lib/cover-letter';
 import { buildCvPdf } from '../lib/cv-pdf';
@@ -29,6 +34,8 @@ interface Options {
   cv: TailoredCv | null;
   letter: CoverLetter | null;
   onProfileSaved: (profile: MasterProfile) => void;
+  /** Questions libres relevées : le panneau en propose les réponses. */
+  onQuestions: (url: string, questions: FreeQuestionField[]) => void;
 }
 
 const IDLE: AutofillState = { status: 'idle' };
@@ -41,7 +48,7 @@ async function attach(bytes: Promise<Uint8Array>, name: string): Promise<Attache
  * Remplissage du formulaire de candidature ouvert dans l'onglet, en un clic. L'état est gardé
  * par offre. Rien n'est envoyé : l'utilisateur relit le formulaire et l'envoie lui-même.
  */
-export function useAutofill({ offer, profile, cv, letter, onProfileSaved }: Options) {
+export function useAutofill({ offer, profile, cv, letter, onProfileSaved, onQuestions }: Options) {
   const url = offer?.url ?? null;
   const [byUrl, setByUrl] = useState<Record<string, AutofillState>>({});
   const state = (url && byUrl[url]) || IDLE;
@@ -85,12 +92,13 @@ export function useAutofill({ offer, profile, cv, letter, onProfileSaved }: Opti
               : null,
           ]);
           const plan = planAutofill(fields, { profile: from, cv: cvFile, letter: letterFile });
-          if (plan.fills.length === 0 && plan.missing.length === 0) {
+          if (plan.fills.length + plan.missing.length + plan.questions.length === 0) {
             set(target, { status: 'empty' });
             return;
           }
           await fillForm(tabId, plan.fills);
           set(target, { status: 'done', result: plan, cvName, letterName });
+          onQuestions(target, plan.questions);
         } catch {
           set(target, {
             status: 'error',
@@ -101,7 +109,7 @@ export function useAutofill({ offer, profile, cv, letter, onProfileSaved }: Opti
         }
       })();
     },
-    [offer, profile, cv, letter, state.status, set, onProfileSaved],
+    [offer, profile, cv, letter, state.status, set, onProfileSaved, onQuestions],
   );
 
   return { state, fill };

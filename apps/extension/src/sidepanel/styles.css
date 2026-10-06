@@ -1433,3 +1433,85 @@ a.hint:hover {
     animation: none;
   }
 }
+
+/* Questions libres : la question, puis la réponse proposée, modifiable sur place. */
+.qa-card {
+  gap: 14px;
+}
+
+.qa {
+  display: grid;
+  gap: 6px;
+}
+
+.qa + .qa {
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+
+.qa-head {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.qa-question {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.qa-rewrite {
+  flex: none;
+  font-size: 12px;
+}
+
+.qa-text {
+  width: 100%;
+  min-height: 4.8em;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.55;
+  field-sizing: content;
+  resize: none;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    box-shadow 0.15s;
+  animation: fade-in 0.3s var(--ease);
+}
+
+.qa-text:focus {
+  border-color: var(--accent-line);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: none;
+}
+
+.qa-text::placeholder {
+  color: var(--faint);
+}
+
+.qa-skeleton {
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+.qa-count {
+  justify-self: end;
+  color: var(--faint);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.qa-count--over {
+  color: var(--ko);
+}

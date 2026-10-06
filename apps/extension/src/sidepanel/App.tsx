@@ -31,6 +31,7 @@ import { useAutofill, type AutofillState } from './use-autofill';
 import { useCopy } from './use-copy';
 import { useCoverLetter } from './use-cover-letter';
 import { useDownload } from './use-download';
+import { useFreeAnswers } from './use-free-answers';
 import { useOfferAnalysis, type OfferAnalysis } from './use-offer-analysis';
 import { useTailoredCv } from './use-tailored-cv';
 
@@ -56,15 +57,19 @@ function missingView(llm: LlmSettings | null, profile: MasterProfile | null): Vi
 function FillButton({
   state,
   documentsPending,
+  reviewing,
   onFill,
 }: {
   state: AutofillState;
+  /** Réponses aux questions libres à relire puis insérer. */
+  reviewing: boolean;
   /** CV ou lettre encore en préparation : on attend pour les joindre. */
   documentsPending: boolean;
   onFill: () => void;
 }) {
-  // Le panneau pose une question : son propre bouton complète le formulaire.
-  if (state.status === 'done' && state.result.missing.length > 0) return null;
+  // Le panneau pose une question, ou attend la relecture des réponses : son propre bouton
+  // complète le formulaire.
+  if (state.status === 'done' && (state.result.missing.length > 0 || reviewing)) return null;
   if (state.status === 'filling' || documentsPending) {
     return (
       <button type="button" className="primary" disabled>
@@ -155,12 +160,14 @@ export function App() {
   const download = useDownload();
   const clipboard = useCopy();
   const onProfileSaved = useCallback((saved: MasterProfile) => setProfile(saved), []);
+  const free = useFreeAnswers(documents);
   const autofill = useAutofill({
     offer: activeOffer,
     profile: profile ?? null,
     cv: cv.state.status === 'done' ? cv.state.tailored : null,
     letter: letter.state.status === 'done' ? letter.state.letter : null,
     onProfileSaved,
+    onQuestions: free.start,
   });
   const documentsPending = [cv.state.status, letter.state.status].some(
     (s) => s === 'loading' || s === 'tailoring' || s === 'writing',
@@ -330,6 +337,7 @@ export function App() {
               state={autofill.state}
               answers={profile?.answers ?? emptyAnswers()}
               onAnswer={autofill.fill}
+              free={free}
             />
           )}
 
@@ -340,6 +348,7 @@ export function App() {
                   <FillButton
                     state={autofill.state}
                     documentsPending={documentsPending}
+                    reviewing={free.state.items.length > 0 && !free.state.inserted}
                     onFill={() => autofill.fill()}
                   />
                 ) : (

@@ -2,6 +2,7 @@ import { emptyProfile, type MasterProfile } from '@propulsee/shared';
 import { describe, expect, it } from 'vitest';
 import {
   fieldPurpose,
+  isFreeQuestion,
   matchingOption,
   planAutofill,
   salaryNumber,
@@ -21,6 +22,7 @@ function field(patch: Partial<FormField>): FormField {
     autocomplete: '',
     options: [],
     accept: '',
+    maxLength: 0,
     writable: true,
     ...patch,
   };
@@ -224,9 +226,43 @@ describe('planAutofill', () => {
     expect(valueOf(planAutofill([city], sources), city)).toMatchObject({ option: 2 });
   });
 
+  it('relève les questions libres sans y écrire', () => {
+    const why = field({
+      kind: 'textarea',
+      label: 'Why do you want to join Acme? *',
+      maxLength: 800,
+    });
+    const heard = field({ label: 'How did you hear about us?', frameId: 3 });
+    const plan = planAutofill([why, heard], sources);
+    expect(plan.fills).toEqual([]);
+    expect(plan.questions).toEqual([
+      { frameId: 0, index: why.index, label: 'Why do you want to join Acme?', maxLength: 800 },
+      { frameId: 3, index: heard.index, label: 'How did you hear about us?', maxLength: 0 },
+    ]);
+  });
+
+  it('ne relève pas une question à laquelle l’utilisateur a déjà répondu', () => {
+    const why = field({ kind: 'textarea', label: 'Pourquoi nous ?', writable: false });
+    expect(planAutofill([why], sources).questions).toEqual([]);
+  });
+
   it('remplit chaque cadre de la page séparément', () => {
     const email = field({ kind: 'email', label: 'Email', frameId: 7 });
     expect(planAutofill([email], sources).fills[0]?.frameId).toBe(7);
+  });
+});
+
+describe('isFreeQuestion', () => {
+  it.each([
+    ['textarea', 'Tell us about a project you are proud of', true],
+    ['textarea', 'Motivations', true],
+    ['text', 'How did you hear about us?', true],
+    ['text', 'Quel est votre plus grand accomplissement professionnel', true],
+    ['text', 'Code postal', false],
+    ['textarea', '', false],
+    ['select', 'Why do you want to join Acme?', false],
+  ] as const)('%s « %s » → %s', (kind, label, expected) => {
+    expect(isFreeQuestion(field({ kind, label }))).toBe(expected);
   });
 });
 

@@ -46,6 +46,20 @@ export function profileDigest(profile: MasterProfile): string {
   return lines.filter(Boolean).join('\n').slice(0, PROFILE_DIGEST_MAX_LENGTH);
 }
 
+/** L'analyse en quelques lignes, pour les prompts qui s'appuient dessus (lettre, réponses…). */
+export function analysisDigest(analysis: JobAnalysis): string {
+  return [
+    analysis.summary,
+    analysis.missions.length ? `Missions : ${analysis.missions.join(' ; ')}` : '',
+    analysis.skills.length
+      ? `Compétences clés : ${analysis.skills.map((s) => s.name).join(', ')}`
+      : '',
+    analysis.expectations.length ? `Attentes : ${analysis.expectations.join(' ; ')}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
 /** Prompt qui résume une offre en missions, compétences clés et attentes. */
 export function buildJobAnalysisPrompt(offer: JobOffer, profile: MasterProfile | null): string {
   const header = [offer.title, offer.company, offer.location].filter(Boolean).join(' · ');

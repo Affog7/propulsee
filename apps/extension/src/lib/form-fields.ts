@@ -21,6 +21,8 @@ export interface RawFormField {
   options: string[];
   /** Types de fichiers acceptés (`accept`), pour un champ fichier. */
   accept: string;
+  /** Limite de caractères (`maxlength`) d'un champ texte, `0` s'il n'y en a pas. */
+  maxLength: number;
   /** Vide, ou encore tel que Propulsee l'a rempli : on peut l'écrire sans rien écraser. */
   writable: boolean;
 }
@@ -155,6 +157,7 @@ export function collectFormFields(): RawFormField[] {
             kind: 'radio',
             options,
             accept: '',
+            maxLength: 0,
             writable: !checked || checked.hasAttribute(FILLED),
           },
           label,
@@ -176,6 +179,7 @@ export function collectFormFields(): RawFormField[] {
           kind,
           options: [],
           accept: clean(el.accept).toLowerCase(),
+          maxLength: Math.max(el.maxLength, 0),
           writable:
             kind === 'file'
               ? !el.files?.length || el.hasAttribute(FILLED)
@@ -192,6 +196,7 @@ export function collectFormFields(): RawFormField[] {
           kind: 'select',
           options: Array.from(el.options, (o) => clean(o.text)),
           accept: '',
+          maxLength: 0,
           writable: !selected || selected.value === '' || el.getAttribute(FILLED) === el.value,
         },
         ownLabel(el),
@@ -204,6 +209,7 @@ export function collectFormFields(): RawFormField[] {
           kind: 'textarea',
           options: [],
           accept: '',
+          maxLength: Math.max(el.maxLength, 0),
           writable: el.value === '' || el.getAttribute(FILLED) === el.value,
         },
         ownLabel(el),
