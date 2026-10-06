@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@propulsee/shared": "*",
     "fastify": "^5.12.5",
     "pg": "^8.23.1"

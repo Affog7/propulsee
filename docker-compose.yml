@@ -28,6 +28,9 @@ services:
       PORT: 3000
       DATABASE_URL: postgres://${POSTGRES_USER:-propulsee}:${POSTGRES_PASSWORD:-propulsee}@db:5432/${POSTGRES_DB:-propulsee}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-claude-opus-5-5}
+      LLM_DAILY_LIMIT: ${LLM_DAILY_LIMIT:-200}
     ports:
       - '${PORT:-3000}:3000'
     depends_on:

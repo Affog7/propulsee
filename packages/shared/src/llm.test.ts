@@ -4,6 +4,8 @@ import {
   buildTestRequest,
   describeLlmError,
   detectProvider,
+  isWeakLocalModel,
+  LLM_QUOTA_ERROR,
   parseCompletionText,
   type LlmSettings,
 } from './llm';
@@ -15,6 +17,12 @@ const claude: LlmSettings = {
 };
 const openai: LlmSettings = { provider: 'openai', apiKey: 'sk-abc', model: 'gpt-5' };
 const ollama: LlmSettings = { provider: 'ollama', apiKey: '', model: 'llama3.2' };
+const propulsee: LlmSettings = {
+  provider: 'propulsee',
+  apiKey: '0b6f8a52-3c1e-4d7a-9f10-2a4b6c8d0e12',
+  model: '',
+  baseUrl: 'http://localhost:3000',
+};
 
 describe('detectProvider', () => {
   it('reconnaît une clé à son préfixe', () => {
@@ -99,5 +107,37 @@ describe('describeLlmError', () => {
     expect(describeLlmError('anthropic', 401)).toBe('Clé Claude refusée.');
     expect(describeLlmError('openai', 404)).toBe('Modèle introuvable chez OpenAI.');
     expect(describeLlmError('ollama', null)).toContain('ollama serve');
+  });
+});
+
+describe('connexion Propulsee (abonnement)', () => {
+  it('passe par l’API Propulsee avec l’identifiant d’installation', () => {
+    const req = buildCompletionRequest(propulsee, 'Bonjour', 300);
+    expect(req).toMatchObject({ url: 'http://localhost:3000/llm/complete', method: 'POST' });
+    expect(req.headers['x-propulsee-install']).toBe(propulsee.apiKey);
+    expect(JSON.parse(req.body ?? '')).toEqual({ prompt: 'Bonjour', maxTokens: 300 });
+  });
+
+  it('lit le texte renvoyé par l’API', () => {
+    expect(parseCompletionText('propulsee', { text: 'Salut' })).toBe('Salut');
+    expect(parseCompletionText('propulsee', { error: 'x' })).toBeNull();
+  });
+
+  it('propose la clé perso quand le quota du jour est atteint', () => {
+    expect(describeLlmError('propulsee', 429)).toBe(LLM_QUOTA_ERROR);
+    expect(describeLlmError('propulsee', null)).toContain('injoignable');
+  });
+});
+
+describe('isWeakLocalModel', () => {
+  it('signale un petit modèle local', () => {
+    expect(isWeakLocalModel(ollama)).toBe(true);
+    expect(isWeakLocalModel({ ...ollama, model: 'gemma2:2b' })).toBe(true);
+    expect(isWeakLocalModel({ ...ollama, model: 'llama3.1:8b' })).toBe(false);
+    expect(isWeakLocalModel({ ...ollama, model: 'qwen2.5:14b' })).toBe(false);
+  });
+
+  it('ne concerne que les modèles locaux', () => {
+    expect(isWeakLocalModel({ ...claude, model: 'x:1b' })).toBe(false);
   });
 });

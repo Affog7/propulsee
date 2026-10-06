@@ -8,16 +8,38 @@ import {
 } from '@propulsee/shared';
 
 const STORAGE_KEY = 'llm';
+const INSTALL_ID_KEY = 'installId';
 
-/** Connexion LLM enregistrée, ou `null` si l'utilisateur n'en a pas encore configuré. */
-export async function loadLlmSettings(): Promise<LlmSettings | null> {
+/** Identifiant anonyme de cette installation, créé au premier appel : il compte le quota. */
+async function loadInstallId(): Promise<string> {
+  const stored = await chrome.storage.local.get(INSTALL_ID_KEY);
+  const existing = stored[INSTALL_ID_KEY];
+  if (typeof existing === 'string') return existing;
+  const created = crypto.randomUUID();
+  await chrome.storage.local.set({ [INSTALL_ID_KEY]: created });
+  return created;
+}
+
+/**
+ * Connexion LLM à utiliser : la clé de l'utilisateur s'il en a branché une, sinon celle de
+ * Propulsee (abonnement ou offre de lancement), sans aucun réglage.
+ */
+export async function loadLlmSettings(): Promise<LlmSettings> {
   const stored = await chrome.storage.local.get(STORAGE_KEY);
-  return (stored[STORAGE_KEY] as LlmSettings | undefined) ?? null;
+  const own = stored[STORAGE_KEY] as LlmSettings | undefined;
+  if (own) return own;
+  return { provider: 'propulsee', apiKey: await loadInstallId(), model: '', baseUrl: __API_URL__ };
 }
 
 /** La clé reste sur ce poste (`storage.local`), elle n'est jamais envoyée à l'API Propulsee. */
 export async function saveLlmSettings(settings: LlmSettings): Promise<void> {
   await chrome.storage.local.set({ [STORAGE_KEY]: settings });
+}
+
+/** Oublie la clé de l'utilisateur et revient à l'abonnement Propulsee. */
+export async function clearLlmSettings(): Promise<LlmSettings> {
+  await chrome.storage.local.remove(STORAGE_KEY);
+  return loadLlmSettings();
 }
 
 export type LlmResult<T> = { ok: true; value: T } | { ok: false; error: string };

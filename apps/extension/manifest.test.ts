@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LLM_PROVIDERS, LLM_PROVIDER_INFO } from '@propulsee/shared';
+import { LLM_PROVIDER_INFO, OWN_KEY_PROVIDERS } from '@propulsee/shared';
 import { LLM_ORIGINS, buildManifest } from './manifest';
 import { ANY_SITE } from './src/lib/site-access';
 
@@ -22,7 +22,7 @@ describe('buildManifest', () => {
   });
 
   it('autorise exactement les fournisseurs déclarés dans @propulsee/shared', () => {
-    const origins = LLM_PROVIDERS.map((p) => new URL(LLM_PROVIDER_INFO[p].baseUrl).origin);
+    const origins = OWN_KEY_PROVIDERS.map((p) => new URL(LLM_PROVIDER_INFO[p].baseUrl).origin);
     expect(LLM_ORIGINS).toEqual(origins);
   });
 

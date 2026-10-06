@@ -32,6 +32,7 @@ export function ProfileView({ llm, initial, onSaved, onClose }: Props) {
   const [profile, setProfile] = useState<MasterProfile | null>(initial);
   const [dirty, setDirty] = useState(false);
   const reading = useRef<AbortController | null>(null);
+  const ownKey = llm.provider !== 'propulsee';
   const llmLabel = LLM_PROVIDER_INFO[llm.provider].label;
 
   // Chaque correction est enregistrée toute seule : pas de bouton « Enregistrer ».
@@ -109,7 +110,11 @@ export function ProfileView({ llm, initial, onSaved, onClose }: Props) {
     return (
       <ImportStage
         error={stage.error}
-        llmLabel={llmLabel}
+        privacy={
+          ownKey
+            ? `Le texte du CV est envoyé uniquement à votre LLM (${llmLabel}).`
+            : 'Le texte du CV sert uniquement à préparer vos candidatures.'
+        }
         canClose={profile !== null}
         onFile={(f) => void importCv(f)}
         onFillByHand={fillByHand}
@@ -136,7 +141,7 @@ export function ProfileView({ llm, initial, onSaved, onClose }: Props) {
           <ReadRow
             done={false}
             pending={stage.pages === undefined}
-            title={`Analyse par ${llmLabel}`}
+            title={ownKey ? `Analyse par ${llmLabel}` : 'Analyse du CV'}
             detail="Identité, expériences, compétences, formation"
           />
         </ul>
@@ -192,14 +197,14 @@ export function ProfileView({ llm, initial, onSaved, onClose }: Props) {
 
 function ImportStage({
   error,
-  llmLabel,
+  privacy,
   canClose,
   onFile,
   onFillByHand,
   onClose,
 }: {
   error?: string;
-  llmLabel: string;
+  privacy: string;
   canClose: boolean;
   onFile: (file: File) => void;
   onFillByHand: () => void;
@@ -269,7 +274,7 @@ function ImportStage({
           Remplir à la main
         </button>
       </p>
-      <p className="hint">Le texte du CV est envoyé uniquement à votre LLM ({llmLabel}).</p>
+      <p className="hint">{privacy}</p>
     </div>
   );
 }

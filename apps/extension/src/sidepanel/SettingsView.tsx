@@ -1,14 +1,16 @@
 import {
-  LLM_PROVIDERS,
   LLM_PROVIDER_INFO,
+  OWN_KEY_PROVIDERS,
   detectProvider,
-  type LlmProvider,
+  isWeakLocalModel,
   type LlmSettings,
+  type OwnKeyProvider,
 } from '@propulsee/shared';
 import { useState, type FormEvent } from 'react';
 import { saveLlmSettings, testLlmConnection } from '../lib/llm';
 
 interface Props {
+  /** Clé déjà branchée, à modifier ; `null` pour en brancher une. */
   initial: LlmSettings | null;
   onSaved: (settings: LlmSettings) => void;
   onClose: () => void;
@@ -16,14 +18,19 @@ interface Props {
 
 type TestState = { kind: 'idle' } | { kind: 'testing' } | { kind: 'error'; message: string };
 
+function ownKeyProvider(settings: LlmSettings | null): OwnKeyProvider {
+  return settings && settings.provider !== 'propulsee' ? settings.provider : 'anthropic';
+}
+
+/** « Ma propre clé » : brancher son compte Claude, OpenAI ou un modèle local, sans abonnement. */
 export function SettingsView({ initial, onSaved, onClose }: Props) {
-  const [provider, setProvider] = useState<LlmProvider>(initial?.provider ?? 'anthropic');
+  const [provider, setProvider] = useState<OwnKeyProvider>(ownKeyProvider(initial));
   const [apiKey, setApiKey] = useState(initial?.apiKey ?? '');
   const [model, setModel] = useState(initial?.model ?? LLM_PROVIDER_INFO.anthropic.defaultModel);
   const [test, setTest] = useState<TestState>({ kind: 'idle' });
   const info = LLM_PROVIDER_INFO[provider];
 
-  function selectProvider(next: LlmProvider) {
+  function selectProvider(next: OwnKeyProvider) {
     if (next === provider) return;
     // On garde un modèle saisi à la main, sinon on passe au modèle par défaut du fournisseur.
     if (model === info.defaultModel || model === '') setModel(LLM_PROVIDER_INFO[next].defaultModel);
@@ -62,14 +69,15 @@ export function SettingsView({ initial, onSaved, onClose }: Props) {
   return (
     <form className="settings" onSubmit={(e) => void submit(e)}>
       <div className="settings-header">
-        <h2>Connexion au LLM</h2>
+        <h2>Ma propre clé</h2>
         <button type="button" className="link" onClick={onClose}>
-          Fermer
+          Retour
         </button>
       </div>
+      <p className="settings-lead">Connectez votre compte : plus de limite ni d’abonnement.</p>
 
       <div className="segmented" role="radiogroup" aria-label="Fournisseur">
-        {LLM_PROVIDERS.map((p) => (
+        {OWN_KEY_PROVIDERS.map((p) => (
           <button
             key={p}
             type="button"
@@ -119,6 +127,14 @@ export function SettingsView({ initial, onSaved, onClose }: Props) {
           }}
         />
       </label>
+
+      {isWeakLocalModel({ provider, apiKey: '', model }) && (
+        <p className="warn-note">
+          Modèle léger : CV et lettres risquent d’être moins fiables. Préférez un modèle d’au moins
+          7 milliards de paramètres, par exemple{' '}
+          <code>{LLM_PROVIDER_INFO.ollama.defaultModel}</code>.
+        </p>
+      )}
 
       {test.kind === 'error' && (
         <p className="form-error" role="alert">
