@@ -14,7 +14,14 @@ import {
   type AutofillPlan,
   type FreeQuestionField,
 } from '../lib/autofill';
-import { activeTabId, fillForm, requestFormAccess, scanForm, toBase64 } from '../lib/autofill-tab';
+import {
+  activeTabId,
+  fillForm,
+  inspectTab,
+  requestFormAccess,
+  scanForm,
+  toBase64,
+} from '../lib/autofill-tab';
 import { buildLetterPdf } from '../lib/cover-letter';
 import { buildCvPdf } from '../lib/cv-pdf';
 import { saveProfile } from '../lib/profile';
@@ -24,7 +31,14 @@ export type AutofillState =
   | { status: 'filling' }
   /** Rien à remplir sur la page : le formulaire n'est pas encore ouvert. */
   | { status: 'empty' }
-  | { status: 'done'; result: AutofillPlan; cvName: string | null; letterName: string | null }
+  | {
+      status: 'done';
+      result: AutofillPlan;
+      cvName: string | null;
+      letterName: string | null;
+      /** Déclarations obligatoires du site : cochées seulement au clic d'envoi. */
+      declarations: string[];
+    }
   | { status: 'error'; error: string };
 
 interface Options {
@@ -97,7 +111,14 @@ export function useAutofill({ offer, profile, cv, letter, onProfileSaved, onQues
             return;
           }
           await fillForm(tabId, plan.fills);
-          set(target, { status: 'done', result: plan, cvName, letterName });
+          const form = await inspectTab(tabId).catch(() => null);
+          set(target, {
+            status: 'done',
+            result: plan,
+            cvName,
+            letterName,
+            declarations: form?.declarations ?? [],
+          });
           onQuestions(target, plan.questions);
         } catch {
           set(target, {

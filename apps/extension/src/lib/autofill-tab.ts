@@ -1,5 +1,6 @@
 import { collectFormFields, fillFormFields, type FieldFill } from './form-fields';
 import type { FormField, FrameFill } from './autofill';
+import { inspectForm, submitForm, type FormSnapshot, type SubmitOutcome } from './form-submit';
 
 /**
  * Le formulaire de candidature peut être sur n'importe quel site (Greenhouse, Lever, site de
@@ -47,6 +48,37 @@ export async function fillForm(tabId: number, fills: FrameFill[]): Promise<numbe
     }),
   );
   return counts.reduce((sum, n) => sum + n, 0);
+}
+
+/**
+ * Le formulaire de l'onglet, lu dans le cadre que Propulsee a rempli (celui qui a le plus de
+ * champs remplis), ou `null` si aucun cadre n'a de formulaire.
+ */
+export async function inspectTab(
+  tabId: number,
+): Promise<(FormSnapshot & { frameId: number }) | null> {
+  const frames = await chrome.scripting.executeScript({
+    target: { tabId, allFrames: true },
+    func: inspectForm,
+  });
+  let best: (FormSnapshot & { frameId: number }) | null = null;
+  for (const frame of frames) {
+    const snapshot = frame.result;
+    if (!snapshot || (snapshot.filled === 0 && !snapshot.canSubmit)) continue;
+    if (!best || snapshot.filled > best.filled) best = { ...snapshot, frameId: frame.frameId };
+  }
+  return best;
+}
+
+/** Envoie le formulaire rempli de l'onglet. À n'appeler qu'au clic de l'utilisateur. */
+export async function submitTab(tabId: number): Promise<SubmitOutcome> {
+  const form = await inspectTab(tabId);
+  if (!form) return { status: 'no-button' };
+  const [frame] = await chrome.scripting.executeScript({
+    target: { tabId, frameIds: [form.frameId] },
+    func: submitForm,
+  });
+  return frame?.result ?? { status: 'no-button' };
 }
 
 /** Octets d'un PDF en base64, seul format que `executeScript` sait transmettre. */

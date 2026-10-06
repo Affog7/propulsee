@@ -1406,6 +1406,58 @@ a.hint:hover {
   font-size: 12px;
 }
 
+.confirm-quote {
+  font-style: italic;
+  line-height: 1.45;
+}
+
+/* Revue finale : ce qui empêche l'envoi, ou la question quand le site ne confirme pas. */
+.notice {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warn);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 13px;
+  animation: fade-in 0.3s var(--ease);
+}
+
+.notice p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.notice-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.secondary {
+  flex: 1;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.secondary:hover {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
 @media (prefers-color-scheme: dark) {
   .confirm {
     border-color: #4a3a1f;
@@ -1421,6 +1473,7 @@ a.hint:hover {
   .analysis,
   .ask,
   .confirm,
+  .notice,
   .big-tick span,
   .item,
   .changes li,
@@ -1460,6 +1513,11 @@ a.hint:hover {
   font-size: 13px;
   font-weight: 600;
   line-height: 1.4;
+}
+
+.qa-inserted {
+  color: var(--ok-fg);
+  font-size: 12px;
 }
 
 .qa-rewrite {

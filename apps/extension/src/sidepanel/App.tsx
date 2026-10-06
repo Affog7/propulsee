@@ -33,6 +33,7 @@ import { useCoverLetter } from './use-cover-letter';
 import { useDownload } from './use-download';
 import { useFreeAnswers } from './use-free-answers';
 import { useOfferAnalysis, type OfferAnalysis } from './use-offer-analysis';
+import { useSubmit, type SubmitState } from './use-submit';
 import { useTailoredCv } from './use-tailored-cv';
 
 type ApiState = 'checking' | 'ok' | 'degraded' | 'offline';
@@ -53,23 +54,17 @@ function missingView(llm: LlmSettings | null, profile: MasterProfile | null): Vi
   return 'flow';
 }
 
-/** Bouton principal de « Postuler » : remplit le formulaire ouvert dans l'onglet. */
+/** Remplit le formulaire ouvert dans l'onglet : depuis « Vérifier » (clic 2) ou « Postuler ». */
 function FillButton({
   state,
   documentsPending,
-  reviewing,
   onFill,
 }: {
   state: AutofillState;
-  /** Réponses aux questions libres à relire puis insérer. */
-  reviewing: boolean;
   /** CV ou lettre encore en préparation : on attend pour les joindre. */
   documentsPending: boolean;
   onFill: () => void;
 }) {
-  // Le panneau pose une question, ou attend la relecture des réponses : son propre bouton
-  // complète le formulaire.
-  if (state.status === 'done' && (state.result.missing.length > 0 || reviewing)) return null;
   if (state.status === 'filling' || documentsPending) {
     return (
       <button type="button" className="primary" disabled>
@@ -79,7 +74,36 @@ function FillButton({
   }
   return (
     <button type="button" className="primary" onClick={onFill}>
-      {state.status === 'done' ? 'Remplir à nouveau' : 'Remplir le formulaire'}
+      Remplir le formulaire
+    </button>
+  );
+}
+
+/** Bouton principal de la revue finale : confirme ce qui est à confirmer et envoie (clic 3). */
+function SendButton({
+  submit,
+  writing,
+  confirming,
+  onSend,
+}: {
+  submit: SubmitState;
+  /** Réponses aux questions en cours de rédaction. */
+  writing: boolean;
+  /** Réponses sensibles ou déclarations : le clic les confirme en même temps. */
+  confirming: boolean;
+  onSend: () => void;
+}) {
+  if (submit.status === 'unsure' || submit.status === 'sent') return null;
+  if (submit.status === 'sending' || writing) {
+    return (
+      <button type="button" className="primary" disabled>
+        {writing ? 'J’écris vos réponses…' : 'J’envoie…'}
+      </button>
+    );
+  }
+  return (
+    <button type="button" className="primary" onClick={onSend}>
+      {confirming ? 'Confirmer et envoyer' : 'Envoyer ma candidature'}
     </button>
   );
 }
@@ -172,6 +196,12 @@ export function App() {
   const documentsPending = [cv.state.status, letter.state.status].some(
     (s) => s === 'loading' || s === 'tailoring' || s === 'writing',
   );
+  const submit = useSubmit(offerUrl);
+
+  function fill() {
+    setStep('apply');
+    autofill.fill();
+  }
 
   function downloadCv(tailored: TailoredCv) {
     if (activeOffer) {
@@ -338,51 +368,84 @@ export function App() {
               answers={profile?.answers ?? emptyAnswers()}
               onAnswer={autofill.fill}
               free={free}
+              submit={submit.state}
+              onConfirmSent={submit.confirm}
+              onRefill={() => {
+                submit.reset();
+                autofill.fill();
+              }}
             />
           )}
 
           <div className="sticky-footer">
-            {step === 'apply'
-              ? offerUrl &&
-                (profile ? (
-                  <FillButton
-                    state={autofill.state}
-                    documentsPending={documentsPending}
-                    reviewing={free.state.items.length > 0 && !free.state.inserted}
-                    onFill={() => autofill.fill()}
+            {step === 'apply' ? (
+              offerUrl &&
+              (!profile ? (
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={() => setView(llm ? 'profile' : 'settings')}
+                >
+                  Créer mon profil
+                </button>
+              ) : autofill.state.status === 'done' ? (
+                // Le panneau pose une question : son propre bouton complète le formulaire.
+                autofill.state.result.missing.length === 0 && (
+                  <SendButton
+                    submit={submit.state}
+                    writing={free.state.items.some((item) => item.writing)}
+                    confirming={
+                      autofill.state.result.used.length > 0 ||
+                      autofill.state.declarations.length > 0
+                    }
+                    onSend={() => submit.send(free.flush)}
                   />
-                ) : (
-                  <button
-                    type="button"
-                    className="primary"
-                    onClick={() => setView(llm ? 'profile' : 'settings')}
-                  >
-                    Créer mon profil
-                  </button>
-                ))
-              : step === 'prepare'
-                ? offerUrl && (
-                    <PrepareButton
-                      analysis={analysis.state}
-                      onPrepare={prepare}
-                      onNext={() => setStep('verify')}
-                    />
-                  )
-                : step === 'verify' && offerUrl && cv.state.status === 'unavailable'
-                  ? analysis.state.status !== 'analyzing' && (
-                      <button
-                        type="button"
-                        className="primary"
-                        onClick={profile ? prepare : () => setView(llm ? 'profile' : 'settings')}
-                      >
-                        {profile ? 'Préparer ma candidature' : 'Créer mon profil'}
-                      </button>
-                    )
-                  : next && (
-                      <button type="button" className="primary" onClick={() => setStep(next)}>
-                        {STEP_LABELS[next]} →
-                      </button>
-                    )}
+                )
+              ) : (
+                <FillButton
+                  state={autofill.state}
+                  documentsPending={documentsPending}
+                  onFill={fill}
+                />
+              ))
+            ) : step === 'prepare' ? (
+              offerUrl && (
+                <PrepareButton
+                  analysis={analysis.state}
+                  onPrepare={prepare}
+                  onNext={() => setStep('verify')}
+                />
+              )
+            ) : step === 'verify' && offerUrl && cv.state.status === 'unavailable' ? (
+              analysis.state.status !== 'analyzing' && (
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={profile ? prepare : () => setView(llm ? 'profile' : 'settings')}
+                >
+                  {profile ? 'Préparer ma candidature' : 'Créer mon profil'}
+                </button>
+              )
+            ) : step === 'verify' && offerUrl && profile ? (
+              // Clic 2 : on passe au formulaire et on le remplit dans le même geste.
+              autofill.state.status === 'done' ? (
+                <button type="button" className="primary" onClick={() => setStep('apply')}>
+                  {STEP_LABELS.apply} →
+                </button>
+              ) : (
+                <FillButton
+                  state={autofill.state}
+                  documentsPending={documentsPending}
+                  onFill={fill}
+                />
+              )
+            ) : (
+              next && (
+                <button type="button" className="primary" onClick={() => setStep(next)}>
+                  {STEP_LABELS[next]} →
+                </button>
+              )
+            )}
             <button
               type="button"
               className="profile-chip"

@@ -64,7 +64,7 @@ export interface AutofillPlan {
   used: AnswerKey[];
   /** Questions du formulaire auxquelles le profil ne sait pas encore répondre. */
   missing: AnswerKey[];
-  /** Questions libres laissées vides : le panneau propose des réponses, à relire avant insertion. */
+  /** Questions libres laissées vides : le panneau en rédige les réponses, puis les insère. */
   questions: FreeQuestionField[];
 }
 
@@ -259,8 +259,8 @@ function textValue(purpose: FieldPurpose, field: RawFormField, profile: MasterPr
 
 /**
  * Ce qu'on écrit dans chaque champ. Les questions libres sont seulement relevées : leurs
- * réponses, proposées dans le panneau, n'y vont qu'une fois relues. On ne touche pas aux cases
- * à cocher (déclarations, consentements) : l'utilisateur relit et envoie lui-même.
+ * réponses sont rédigées dans le panneau (`use-free-answers.ts`). On ne touche pas aux cases à
+ * cocher : les déclarations obligatoires ne sont cochées qu'au clic d'envoi (`form-submit.ts`).
  */
 export function planAutofill(fields: FormField[], sources: AutofillSources): AutofillPlan {
   const { profile, cv, letter } = sources;
