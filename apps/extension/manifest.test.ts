@@ -25,6 +25,14 @@ describe('buildManifest', () => {
     expect(LLM_ORIGINS).toEqual(origins);
   });
 
+  it("lit les offres des sites d'emploi reconnus", () => {
+    const manifest = buildManifest('http://localhost:3000');
+    expect(manifest.permissions).toContain('scripting');
+    expect(manifest.host_permissions).toEqual(
+      expect.arrayContaining(['https://*.linkedin.com/*', 'https://*.indeed.com/*']),
+    );
+  });
+
   it('ouvre le panneau latéral depuis sidepanel.html', () => {
     const manifest = buildManifest('http://localhost:3000');
     expect(manifest.manifest_version).toBe(3);

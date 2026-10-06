@@ -12,8 +12,10 @@ import { useEffect, useState } from 'react';
 import { fetchHealth } from '../lib/api';
 import { loadLlmSettings } from '../lib/llm';
 import { loadProfile } from '../lib/profile';
+import { OfferView } from './OfferView';
 import { ProfileView } from './ProfileView';
 import { SettingsView } from './SettingsView';
+import { useActiveJobOffer } from './use-active-job-offer';
 
 type ApiState = 'checking' | 'ok' | 'degraded' | 'offline';
 
@@ -34,7 +36,15 @@ function missingView(llm: LlmSettings | null, profile: MasterProfile | null): Vi
 }
 
 export function App() {
-  const [step, setStep] = useState<ApplicationStep>('prepare');
+  const offer = useActiveJobOffer();
+  const offerUrl = offer.status === 'found' ? offer.offer.url : null;
+  // Chaque nouvelle offre repart de « Préparer ».
+  const [progress, setProgress] = useState<{ url: string | null; step: ApplicationStep }>({
+    url: null,
+    step: 'prepare',
+  });
+  const step = progress.url === offerUrl ? progress.step : 'prepare';
+  const setStep = (s: ApplicationStep) => setProgress({ url: offerUrl, step: s });
   const [api, setApi] = useState<ApiState>('checking');
   // `undefined` tant que le stockage n'est pas lu, `null` si rien n'est encore configuré.
   const [llm, setLlm] = useState<LlmSettings | null | undefined>(undefined);
@@ -107,12 +117,14 @@ export function App() {
       ) : (
         <>
           <ol className="steps">
-            {APPLICATION_STEPS.map((s) => (
+            {APPLICATION_STEPS.map((s, index) => (
               <li key={s}>
                 <button
                   type="button"
                   className="step"
+                  data-done={index < APPLICATION_STEPS.indexOf(step) || undefined}
                   aria-current={s === step ? 'step' : undefined}
+                  disabled={!offerUrl}
                   onClick={() => setStep(s)}
                 >
                   {STEP_LABELS[s]}
@@ -121,27 +133,38 @@ export function App() {
             ))}
           </ol>
 
-          <section className="step-content">
-            <h2>{STEP_LABELS[step]}</h2>
-            <p>Étape à implémenter.</p>
-          </section>
-
-          {next && (
-            <button type="button" className="primary" onClick={() => setStep(next)}>
-              {STEP_LABELS[next]} →
-            </button>
+          {step === 'prepare' ? (
+            <OfferView state={offer} />
+          ) : (
+            <section className="step-content">
+              <h2>{STEP_LABELS[step]}</h2>
+              <p>Étape à implémenter.</p>
+            </section>
           )}
 
-          <button
-            type="button"
-            className="profile-chip"
-            onClick={() => setView(llm ? 'profile' : 'settings')}
-          >
-            <span className="avatar avatar--small" aria-hidden="true">
-              {profileInitials(profile?.fullName ?? '') || '✦'}
-            </span>
-            {profile?.fullName ? `Profil de ${profile.fullName}` : 'Créer mon profil'}
-          </button>
+          <div className="sticky-footer">
+            {step === 'prepare'
+              ? offerUrl && (
+                  <button type="button" className="primary" onClick={() => setStep('verify')}>
+                    Préparer ma candidature
+                  </button>
+                )
+              : next && (
+                  <button type="button" className="primary" onClick={() => setStep(next)}>
+                    {STEP_LABELS[next]} →
+                  </button>
+                )}
+            <button
+              type="button"
+              className="profile-chip"
+              onClick={() => setView(llm ? 'profile' : 'settings')}
+            >
+              <span className="avatar avatar--small" aria-hidden="true">
+                {profileInitials(profile?.fullName ?? '') || '✦'}
+              </span>
+              {profile?.fullName ? `Profil de ${profile.fullName}` : 'Créer mon profil'}
+            </button>
+          </div>
         </>
       )}
     </main>
