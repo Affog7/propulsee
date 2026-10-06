@@ -1,6 +1,7 @@
 import {
   APPLICATION_STEPS,
   LLM_PROVIDER_INFO,
+  LLM_QUOTA_ERROR,
   STEP_LABELS,
   cvFileName,
   documentFileName,
@@ -19,7 +20,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { fetchHealth } from '../lib/api';
 import { downloadLetterPdf } from '../lib/cover-letter';
 import { downloadCvPdf } from '../lib/cv-pdf';
-import { loadLlmSettings } from '../lib/llm';
+import { clearLlmSettings, loadLlmSettings } from '../lib/llm';
 import { loadProfile } from '../lib/profile';
 import { ApplicationsView, StatusChip } from './ApplicationsView';
 import { ApplyView, confirmedAnswers } from './ApplyView';
@@ -28,6 +29,7 @@ import { LetterView } from './LetterView';
 import { OfferView } from './OfferView';
 import { ProfileView } from './ProfileView';
 import { SettingsView } from './SettingsView';
+import { SubscriptionView } from './SubscriptionView';
 import { VerifyView } from './VerifyView';
 import { useActiveJobOffer } from './use-active-job-offer';
 import { useApplications } from './use-applications';
@@ -49,14 +51,7 @@ const API_LABELS: Record<ApiState, string> = {
   offline: 'API hors ligne',
 };
 
-type View = 'flow' | 'settings' | 'profile' | 'cv' | 'letter' | 'applications';
-
-/** Écran à ouvrir d'office : ce qui manque encore, dans l'ordre (LLM puis profil). */
-function missingView(llm: LlmSettings | null, profile: MasterProfile | null): View {
-  if (!llm) return 'settings';
-  if (!profile) return 'profile';
-  return 'flow';
-}
+type View = 'flow' | 'subscription' | 'own-key' | 'profile' | 'cv' | 'letter' | 'applications';
 
 /** Remplit le formulaire ouvert dans l'onglet : depuis « Vérifier » (clic 2) ou « Postuler ». */
 function FillButton({
@@ -169,8 +164,8 @@ export function App() {
   const step = progress.url === offerUrl ? progress.step : 'prepare';
   const setStep = (s: ApplicationStep) => setProgress({ url: offerUrl, step: s });
   const [api, setApi] = useState<ApiState>('checking');
-  // `undefined` tant que le stockage n'est pas lu, `null` si rien n'est encore configuré.
-  const [llm, setLlm] = useState<LlmSettings | null | undefined>(undefined);
+  // `undefined` tant que le stockage n'est pas lu. Sans clé perso, c'est la connexion Propulsee.
+  const [llm, setLlm] = useState<LlmSettings | undefined>(undefined);
   const [profile, setProfile] = useState<MasterProfile | null | undefined>(undefined);
   const [view, setView] = useState<View>('flow');
   const next = nextStep(step);
@@ -252,12 +247,14 @@ export function App() {
   }
 
   function prepare() {
-    if (!llm) setView('settings');
-    else {
-      setStep('prepare');
-      analysis.analyze();
-    }
+    setStep('prepare');
+    analysis.analyze();
   }
+
+  // Quota du jour atteint chez Propulsee : on propose la clé perso, discrètement.
+  const quotaReached = [analysis.state, cv.state, letter.state].some(
+    (s) => s.status === 'error' && s.error === LLM_QUOTA_ERROR,
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -273,8 +270,8 @@ export function App() {
       if (!active) return;
       setLlm(settings);
       setProfile(saved);
-      // Premier lancement : on enchaîne directement sur ce qui manque, sans clic.
-      setView(missingView(settings, saved));
+      // Premier lancement : rien à régler, on enchaîne directement sur le profil.
+      if (!saved) setView('profile');
     });
     return () => {
       active = false;
@@ -294,25 +291,44 @@ export function App() {
         </h1>
         <div className="panel-status">
           <span className={`api-status api-status--${api}`}>{API_LABELS[api]}</span>
+          {llm.provider !== 'propulsee' && (
+            // Seulement avec une clé perso : avec l'abonnement, il n'y a rien à surveiller.
+            <button
+              type="button"
+              className="api-status api-status--ok link"
+              title="Votre propre clé"
+              onClick={() => setView('subscription')}
+            >
+              {LLM_PROVIDER_INFO[llm.provider].label}
+            </button>
+          )}
           <button
             type="button"
-            className={`api-status api-status--${llm ? 'ok' : 'offline'} link`}
-            title="Paramètres du LLM"
-            onClick={() => setView('settings')}
+            className="icon-btn settings-btn"
+            title="Paramètres › Abonnement"
+            aria-label="Paramètres › Abonnement"
+            onClick={() => setView('subscription')}
           >
-            {llm ? LLM_PROVIDER_INFO[llm.provider].label : 'Connecter un LLM'}
+            ⚙
           </button>
         </div>
       </header>
 
-      {view === 'settings' ? (
+      {view === 'subscription' ? (
+        <SubscriptionView
+          llm={llm}
+          onOwnKey={() => setView('own-key')}
+          onUseSubscription={() => void clearLlmSettings().then(setLlm)}
+          onClose={() => setView('flow')}
+        />
+      ) : view === 'own-key' ? (
         <SettingsView
-          initial={llm}
+          initial={llm.provider === 'propulsee' ? null : llm}
           onSaved={(settings) => {
             setLlm(settings);
-            setView(missingView(settings, profile));
+            setView('subscription');
           }}
-          onClose={() => setView(missingView(llm, profile) === 'profile' ? 'profile' : 'flow')}
+          onClose={() => setView('subscription')}
         />
       ) : view === 'cv' && activeOffer && cv.state.status === 'done' ? (
         <CvPreview
@@ -352,7 +368,7 @@ export function App() {
           onForget={applications.forget}
           onClose={() => setView('flow')}
         />
-      ) : view === 'profile' && llm ? (
+      ) : view === 'profile' ? (
         <ProfileView
           llm={llm}
           initial={profile}
@@ -429,11 +445,7 @@ export function App() {
             {step === 'apply' ? (
               offerUrl &&
               (!profile ? (
-                <button
-                  type="button"
-                  className="primary"
-                  onClick={() => setView(llm ? 'profile' : 'settings')}
-                >
+                <button type="button" className="primary" onClick={() => setView('profile')}>
                   Créer mon profil
                 </button>
               ) : autofill.state.status === 'done' ? (
@@ -469,7 +481,7 @@ export function App() {
                 <button
                   type="button"
                   className="primary"
-                  onClick={profile ? prepare : () => setView(llm ? 'profile' : 'settings')}
+                  onClick={profile ? prepare : () => setView('profile')}
                 >
                   {profile ? 'Préparer ma candidature' : 'Créer mon profil'}
                 </button>
@@ -494,12 +506,13 @@ export function App() {
                 </button>
               )
             )}
+            {quotaReached && (
+              <button type="button" className="link quota-link" onClick={() => setView('own-key')}>
+                Utiliser ma propre clé
+              </button>
+            )}
             <div className="footer-chips">
-              <button
-                type="button"
-                className="profile-chip"
-                onClick={() => setView(llm ? 'profile' : 'settings')}
-              >
+              <button type="button" className="profile-chip" onClick={() => setView('profile')}>
                 <span className="avatar avatar--small" aria-hidden="true">
                   {profileInitials(profile?.fullName ?? '') || '✦'}
                 </span>

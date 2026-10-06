@@ -2,7 +2,8 @@ import pkg from './package.json';
 import { jobSiteMatches } from './src/lib/job-sites';
 
 /**
- * Origines des fournisseurs de LLM (voir `LLM_PROVIDER_INFO` dans @propulsee/shared).
+ * Origines des fournisseurs de LLM branchés avec la clé de l'utilisateur (voir
+ * `OWN_KEY_PROVIDERS` dans @propulsee/shared ; Propulsee passe par l'URL de l'API).
  * Recopiées ici car vite.config.ts charge ce fichier sous Node, qui ne lit pas le TypeScript
  * de @propulsee/shared ; un test vérifie que les deux listes restent alignées.
  */

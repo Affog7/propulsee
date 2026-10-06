@@ -208,6 +208,7 @@ body {
 .panel-status {
   display: flex;
   gap: 12px;
+  align-items: center;
 }
 
 .link {
@@ -1804,4 +1805,55 @@ a.hint:hover {
 
 .qa-count--over {
   color: var(--ko);
+}
+
+/* ---------- Abonnement ---------- */
+
+.plan {
+  gap: 6px;
+}
+
+.plan-title {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.plan-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.plan-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.settings-lead {
+  margin: -6px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.warn-note {
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--warn) 9%, transparent);
+  color: var(--fg);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.quota-link {
+  align-self: center;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.icon-btn.settings-btn:hover {
+  color: var(--fg);
 }

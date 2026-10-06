@@ -108,7 +108,7 @@ export function useActiveJobOffer(): ActiveJobOffer {
           offer = postingOffer(page);
         } else {
           const llm = await loadLlmSettings();
-          if (!llm || signal.aborted) return;
+          if (signal.aborted) return;
           setState({ status: 'reading', source: hostLabel(url) });
           entry.asking = true;
           offer = await confirmOffer(llm, page, signal);

@@ -1,5 +1,7 @@
 import { loadConfig, loadDotEnv } from './config';
 import { createDb } from './db';
+import { createInstallQuota } from './install-quota';
+import { createAnthropicGateway } from './llm-gateway';
 import { buildServer } from './server';
 
 loadDotEnv();
@@ -10,7 +12,15 @@ const app = buildServer({
   db: createDb(config.databaseUrl, (err) =>
     app.log.error({ err }, 'Postgres : erreur sur une connexion inactive'),
   ),
+  llm: config.anthropicApiKey
+    ? createAnthropicGateway(config.anthropicApiKey, config.llmModel)
+    : null,
+  quota: createInstallQuota(config.llmDailyLimit),
 });
+
+if (!config.anthropicApiKey) {
+  app.log.warn('ANTHROPIC_API_KEY absente : le LLM géré par Propulsee est désactivé');
+}
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
