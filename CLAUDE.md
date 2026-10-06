@@ -44,3 +44,12 @@ Avant de considérer une tâche terminée : `npm run lint && npm run typecheck &
 - **Dépendances** : outillage commun (TypeScript, ESLint, Prettier, Vitest) à la racine, dépendances propres à une app dans son workspace (`npm i <pkg> -w @propulsee/api`). Référencer un workspace avec la version `"*"`.
 - **Commits** : Conventional Commits en français (`feat: …`, `fix: …`, `chore: …`).
 - **Node 20** : outillage choisi pour rester compatible Node 20.18+ (Vite 6, ESLint 9, Vitest 4). Vérifier `engines` avant de monter une dépendance de version majeure.
+
+## Workflow Git (obligatoire)
+
+- Chaque feature part de `main` à jour : `git checkout main && git pull`, puis `git checkout -b feat/<nom-court>`.
+- Commits au format Conventional Commits (voir ci-dessus).
+- Avant de terminer : `npm run lint && npm run typecheck && npm test` doivent passer.
+- Puis `git push -u origin feat/<nom-court>` et `gh pr create --base main --fill` (titre clair, description Avant/Après).
+- Ne jamais pousser directement sur `main`.
+- Raccourci : `/feature <description>` (`.claude/commands/feature.md`) enchaîne tout ce workflow.
