@@ -27,6 +27,8 @@ export default defineConfig(({ mode }) => {
     envDir: ROOT_DIR,
     define: { __API_URL__: JSON.stringify(apiUrl) },
     plugins: [react(), manifest(apiUrl)],
+    // Worker de pdf.js (import `?worker`) : module ES, comme le reste de l'extension.
+    worker: { format: 'es' },
     build: {
       outDir: 'dist',
       emptyOutDir: true,

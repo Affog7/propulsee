@@ -51,13 +51,19 @@ export async function testLlmConnection(
   return result.ok ? { ok: true, value: null } : result;
 }
 
+export interface CompleteOptions {
+  maxTokens?: number;
+  signal?: AbortSignal;
+}
+
 /** Envoie un prompt au LLM configuré et renvoie sa réponse texte. */
 export async function complete(
   settings: LlmSettings,
   prompt: string,
-  signal?: AbortSignal,
+  { maxTokens, signal }: CompleteOptions = {},
 ): Promise<LlmResult<string>> {
-  const result = await send(settings, buildCompletionRequest(settings, prompt), signal);
+  const request = buildCompletionRequest(settings, prompt, maxTokens);
+  const result = await send(settings, request, signal);
   if (!result.ok) return result;
   const text = parseCompletionText(settings.provider, result.value);
   return text === null
