@@ -15,6 +15,8 @@
   --shadow: 0 1px 2px rgba(18, 18, 40, 0.04), 0 4px 14px -4px rgba(18, 18, 40, 0.08);
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ok: #16a34a;
+  --ok-fg: #1f8a5b;
+  --ok-soft: #e7f6ee;
   --warn: #d97706;
   --ko: #dc2626;
   --logo: #111114;
@@ -40,6 +42,8 @@
     --glow: 0 10px 24px -12px rgba(124, 108, 247, 0.6);
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     --logo: #2c2c38;
+    --ok-fg: #4ade80;
+    --ok-soft: #14301f;
   }
 }
 
@@ -928,7 +932,83 @@ a.hint:hover {
   }
 }
 
+/* ---------- Analyse de l'offre ---------- */
+
+.analysis {
+  gap: 8px;
+  animation: fade-in 0.35s var(--ease);
+}
+
+.analysis-summary {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+}
+
+.bullets {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.bullets li {
+  display: flex;
+  gap: 8px;
+}
+
+.bullets li::before {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin-top: 0.55em;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.skill {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.skill--match {
+  border-color: transparent;
+  background: var(--ok-soft);
+  color: var(--ok-fg);
+}
+
+.note {
+  margin: 2px 0 0;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .analysis,
   .skeleton,
   .onboard,
   .tick,
