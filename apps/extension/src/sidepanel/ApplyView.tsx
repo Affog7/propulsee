@@ -1,4 +1,9 @@
-import type { ApplicationAnswers, JobOffer, WorkAuthorization } from '@propulsee/shared';
+import type {
+  ApplicationAnswers,
+  JobOffer,
+  SentAnswer,
+  WorkAuthorization,
+} from '@propulsee/shared';
 import { useState, type FormEvent } from 'react';
 import type { AnswerKey } from '../lib/autofill';
 import { JobCard } from './OfferView';
@@ -19,6 +24,7 @@ interface Props {
   /** Réponse à « Votre candidature est-elle partie ? ». */
   onConfirmSent: (sent: boolean) => void;
   onRefill: () => void;
+  onShowApplications: () => void;
 }
 
 /** Réponses proposées aux questions libres, et ce qu'on peut en faire. */
@@ -29,6 +35,22 @@ export interface FreeAnswersActions {
 }
 
 const AUTH_LABELS: Record<Exclude<WorkAuthorization, ''>, string> = { yes: 'Oui', no: 'Non' };
+
+const SALARY_LABEL = 'Prétentions salariales';
+const AUTH_LABEL = 'Autorisé·e à travailler dans le pays du poste';
+
+/** Réponses sensibles parties avec le formulaire, telles que l'utilisateur les a confirmées. */
+export function confirmedAnswers(used: AnswerKey[], answers: ApplicationAnswers): SentAnswer[] {
+  const auth = answers.workAuthorization;
+  return [
+    ...(used.includes('salary') && answers.salary
+      ? [{ question: SALARY_LABEL, answer: answers.salary }]
+      : []),
+    ...(used.includes('workAuthorization') && auth
+      ? [{ question: AUTH_LABEL, answer: AUTH_LABELS[auth] }]
+      : []),
+  ];
+}
 
 function fieldsLabel(count: number): string {
   if (count === 0) return 'Aucun champ à remplir';
@@ -138,7 +160,7 @@ function ConfirmCard({
       {used.includes('salary') && (
         <div className="confirm-row">
           <span>
-            Prétentions salariales
+            {SALARY_LABEL}
             <small>{answers.salary}</small>
           </span>
           <button type="button" className="item-action" onClick={onEdit}>
@@ -149,7 +171,7 @@ function ConfirmCard({
       {used.includes('workAuthorization') && auth && (
         <div className="confirm-row">
           <span>
-            Autorisé·e à travailler dans le pays du poste
+            {AUTH_LABEL}
             <small>{AUTH_LABELS[auth]}</small>
           </span>
           <button type="button" className="item-action" onClick={onEdit}>
@@ -417,8 +439,8 @@ function Review({
   );
 }
 
-/** Candidature envoyée : c'est fait, place à l'offre suivante. */
-function Sent({ offer }: { offer: JobOffer }) {
+/** Candidature envoyée : c'est fait, place à l'offre suivante. La copie est déjà gardée. */
+function Sent({ offer, onShowApplications }: { offer: JobOffer; onShowApplications: () => void }) {
   return (
     <section className="onboard">
       <span className="big-tick" aria-hidden="true">
@@ -430,6 +452,12 @@ function Sent({ offer }: { offer: JobOffer }) {
       </div>
       <JobCard offer={offer} />
       <p className="lead">Ouvrez votre prochaine offre : je prépare la candidature suivante.</p>
+      <p className="hint">
+        J’ai gardé une copie de ce qui est parti.{' '}
+        <button type="button" className="link" onClick={onShowApplications}>
+          Voir mes candidatures
+        </button>
+      </p>
     </section>
   );
 }
@@ -451,7 +479,7 @@ export function ApplyView({ offer, hasProfile, state, ...review }: Props) {
   switch (state.status) {
     case 'done':
       return review.submit.status === 'sent' ? (
-        <Sent offer={offer} />
+        <Sent offer={offer} onShowApplications={review.onShowApplications} />
       ) : (
         <Review state={state} {...review} />
       );
