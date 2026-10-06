@@ -16,6 +16,7 @@ import { OfferView } from './OfferView';
 import { ProfileView } from './ProfileView';
 import { SettingsView } from './SettingsView';
 import { useActiveJobOffer } from './use-active-job-offer';
+import { useOfferAnalysis, type OfferAnalysis } from './use-offer-analysis';
 
 type ApiState = 'checking' | 'ok' | 'degraded' | 'offline';
 
@@ -35,6 +36,44 @@ function missingView(llm: LlmSettings | null, profile: MasterProfile | null): Vi
   return 'flow';
 }
 
+/** Bouton principal de « Préparer » : lance l'analyse, puis mène à « Vérifier ». */
+function PrepareButton({
+  analysis,
+  onPrepare,
+  onNext,
+}: {
+  analysis: OfferAnalysis;
+  onPrepare: () => void;
+  onNext: () => void;
+}) {
+  switch (analysis.status) {
+    case 'analyzing':
+      return (
+        <button type="button" className="primary" disabled>
+          Quelques secondes…
+        </button>
+      );
+    case 'done':
+      return (
+        <button type="button" className="primary" onClick={onNext}>
+          {STEP_LABELS.verify} →
+        </button>
+      );
+    case 'error':
+      return (
+        <button type="button" className="primary" onClick={onPrepare}>
+          Réessayer
+        </button>
+      );
+    case 'idle':
+      return (
+        <button type="button" className="primary" onClick={onPrepare}>
+          Préparer ma candidature
+        </button>
+      );
+  }
+}
+
 export function App() {
   const offer = useActiveJobOffer();
   const offerUrl = offer.status === 'found' ? offer.offer.url : null;
@@ -51,6 +90,11 @@ export function App() {
   const [profile, setProfile] = useState<MasterProfile | null | undefined>(undefined);
   const [view, setView] = useState<View>('flow');
   const next = nextStep(step);
+  const analysis = useOfferAnalysis(
+    offer.status === 'found' ? offer.offer : null,
+    llm ?? null,
+    profile ?? null,
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -134,7 +178,7 @@ export function App() {
           </ol>
 
           {step === 'prepare' ? (
-            <OfferView state={offer} />
+            <OfferView state={offer} analysis={analysis.state} hasProfile={!!profile} />
           ) : (
             <section className="step-content">
               <h2>{STEP_LABELS[step]}</h2>
@@ -145,9 +189,11 @@ export function App() {
           <div className="sticky-footer">
             {step === 'prepare'
               ? offerUrl && (
-                  <button type="button" className="primary" onClick={() => setStep('verify')}>
-                    Préparer ma candidature
-                  </button>
+                  <PrepareButton
+                    analysis={analysis.state}
+                    onPrepare={() => (llm ? analysis.analyze() : setView('settings'))}
+                    onNext={() => setStep('verify')}
+                  />
                 )
               : next && (
                   <button type="button" className="primary" onClick={() => setStep(next)}>
