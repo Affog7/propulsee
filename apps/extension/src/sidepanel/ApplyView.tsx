@@ -4,6 +4,7 @@ import type { AnswerKey } from '../lib/autofill';
 import { JobCard } from './OfferView';
 import type { AutofillState } from './use-autofill';
 import type { FreeAnswersState } from './use-free-answers';
+import type { SubmitState } from './use-submit';
 import { Item } from './VerifyView';
 
 interface Props {
@@ -14,6 +15,10 @@ interface Props {
   /** Réponses données (ou corrigées) dans le panneau : le formulaire est rempli à nouveau. */
   onAnswer: (answers: Partial<ApplicationAnswers>) => void;
   free: FreeAnswersActions;
+  submit: SubmitState;
+  /** Réponse à « Votre candidature est-elle partie ? ». */
+  onConfirmSent: (sent: boolean) => void;
+  onRefill: () => void;
 }
 
 /** Réponses proposées aux questions libres, et ce qu'on peut en faire. */
@@ -21,7 +26,6 @@ export interface FreeAnswersActions {
   state: FreeAnswersState;
   edit: (label: string, text: string) => void;
   rewrite: (label?: string) => void;
-  insert: () => void;
 }
 
 const AUTH_LABELS: Record<Exclude<WorkAuthorization, ''>, string> = { yes: 'Oui', no: 'Non' };
@@ -112,13 +116,18 @@ function AnswersCard({
   );
 }
 
-/** Réponses du profil écrites dans le formulaire : sensibles, l'utilisateur les relit. */
+/**
+ * Ce que l'envoi engage : les réponses sensibles écrites dans le formulaire, et les
+ * déclarations du site, cochées seulement au clic d'envoi. Un seul clic confirme et envoie.
+ */
 function ConfirmCard({
   used,
+  declarations,
   answers,
   onEdit,
 }: {
   used: AnswerKey[];
+  declarations: string[];
   answers: ApplicationAnswers;
   onEdit: () => void;
 }) {
@@ -148,6 +157,14 @@ function ConfirmCard({
           </button>
         </div>
       )}
+      {declarations.map((text) => (
+        <div key={text} className="confirm-row">
+          <span>
+            Déclaration du site
+            <small className="confirm-quote">« {text} »</small>
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -162,30 +179,31 @@ function AnswerSkeleton() {
   );
 }
 
-function answersLabel(count: number): string {
-  return count > 1 ? `Insérer mes ${count} réponses` : 'Insérer ma réponse';
-}
-
 /**
  * Questions libres du formulaire : une réponse proposée pour chacune, à partir du profil et de
- * l'offre, modifiable sur place. Un clic les insère toutes ; une réponse vidée est laissée de côté.
+ * l'offre, déjà insérée et modifiable sur place. Une retouche part avec l'envoi.
  */
 function FreeAnswersCard({ free }: { free: FreeAnswersActions }) {
-  const { items, error, inserting, inserted } = free.state;
+  const { items, error, pending } = free.state;
   const writing = items.some((item) => item.writing);
-  const ready = items.filter((item) => item.text.trim() !== '').length;
   return (
     <section className="card ask qa-card" aria-busy={writing || undefined}>
       <h3 className="cap">
         {items.length > 1 ? `${items.length} questions du formulaire` : 'Question du formulaire'}
       </h3>
-      {items.map(({ question, text, writing: busy }) => {
+      {items.map(({ question, text, writing: busy, inserted }) => {
         const over = question.maxLength > 0 && text.length > question.maxLength;
         return (
           <div key={question.label} className="qa">
             <div className="qa-head">
               <span className="qa-question" id={`qa-${question.index}`}>
                 {question.label}
+                {inserted && (
+                  <span className="qa-inserted" title="Insérée dans le formulaire">
+                    {' '}
+                    ✓
+                  </span>
+                )}
               </span>
               {!busy && (
                 <button
@@ -227,68 +245,117 @@ function FreeAnswersCard({ free }: { free: FreeAnswersActions }) {
           )}
         </p>
       )}
-      <button
-        type="button"
-        className="primary"
-        disabled={writing || inserting || inserted || ready === 0}
-        onClick={free.insert}
-      >
-        {writing
-          ? 'J’écris vos réponses…'
-          : inserting
-            ? 'Quelques secondes…'
-            : inserted
-              ? ready > 1
-                ? 'Réponses insérées ✓'
-                : 'Réponse insérée ✓'
-              : answersLabel(ready)}
-      </button>
       <p className="hint">
-        {inserted
-          ? 'Une retouche ici ? Insérez-la à nouveau.'
-          : 'Tirées de votre profil et de l’offre. Relisez, retouchez si besoin.'}
+        {writing
+          ? 'Tirées de votre profil et de l’offre. Je les insère dès qu’elles sont prêtes.'
+          : pending > 0
+            ? 'Vos retouches partiront dans le formulaire avec l’envoi.'
+            : 'Déjà dans le formulaire. Retouchez-les ici si besoin.'}
       </p>
     </section>
   );
 }
 
-function Filled({
+/** Ce que l'envoi a donné, quand il n'est pas (encore) parti : quoi faire ensuite. */
+function SubmitNotice({
+  submit,
+  onConfirmSent,
+}: {
+  submit: SubmitState;
+  onConfirmSent: Props['onConfirmSent'];
+}) {
+  switch (submit.status) {
+    case 'missing':
+    case 'rejected':
+      return (
+        <div className="notice" role="alert">
+          <b>
+            {submit.status === 'missing' ? 'Le site attend un champ' : 'Le site refuse l’envoi'}
+          </b>
+          <p>
+            {submit.status === 'missing' ? 'À compléter : ' : 'Il signale : '}
+            {submit.fields.join(', ')}.{' '}
+            {submit.status === 'missing'
+              ? 'Je vous ai placé sur le premier champ : complétez-le, puis renvoyez.'
+              : 'Corrigez sur la page, puis renvoyez.'}
+          </p>
+        </div>
+      );
+    case 'unsure':
+      return (
+        <div className="notice" role="alert">
+          <b>Votre candidature est-elle partie ?</b>
+          <p>
+            {submit.pressed
+              ? 'J’ai cliqué sur le bouton d’envoi du site, mais je ne vois pas de confirmation.'
+              : 'Je ne trouve pas le bouton d’envoi : envoyez-la depuis la page, puis dites-le-moi.'}
+          </p>
+          <div className="notice-actions">
+            <button type="button" className="secondary" onClick={() => onConfirmSent(false)}>
+              Pas encore
+            </button>
+            <button type="button" className="secondary" onClick={() => onConfirmSent(true)}>
+              Oui, envoyée
+            </button>
+          </div>
+        </div>
+      );
+    default:
+      return null;
+  }
+}
+
+/**
+ * Revue finale : tout ce qui va partir sur un seul écran (pièces jointes, champs remplis,
+ * réponses aux questions, ce que l'envoi engage). Le bouton du bas confirme et envoie.
+ */
+function Review({
   state,
   answers,
   onAnswer,
   free,
-}: {
+  submit,
+  onConfirmSent,
+  onRefill,
+}: Omit<Props, 'offer' | 'hasProfile' | 'state'> & {
   state: Extract<AutofillState, { status: 'done' }>;
-  answers: ApplicationAnswers;
-  onAnswer: Props['onAnswer'];
-  free: FreeAnswersActions;
 }) {
   const [editing, setEditing] = useState(false);
-  const { result, cvName, letterName } = state;
+  const { result, cvName, letterName, declarations } = state;
   const asking = result.missing.length > 0;
   const questions = free.state.items.length;
-  const reviewing = questions > 0 && !free.state.inserted;
+  const writing = free.state.items.some((item) => item.writing);
+  // Envoi arrêté ou incertain : on le dit en haut, là où l'utilisateur regarde.
+  const stopped = ['missing', 'rejected', 'unsure'].includes(submit.status);
+  const ready = !asking && !writing && !stopped;
+  const inserted = free.state.insertedCount;
   return (
     <section className="onboard">
-      {!asking && !reviewing && (
+      {ready && (
         <span className="big-tick" aria-hidden="true">
           <span>✓</span>
         </span>
       )}
       <div>
-        <div className="eyebrow">✦ {asking || reviewing ? 'Presque prêt' : 'Prêt à envoyer'}</div>
+        <div className="eyebrow">
+          ✦ {ready ? 'Prêt à envoyer' : stopped ? 'Pas encore envoyée' : 'Presque prêt'}
+        </div>
         <h2 className="title">
           {asking
             ? result.missing.length > 1
               ? 'Deux réponses et c’est prêt'
               : 'Une dernière réponse'
-            : reviewing
+            : writing
               ? questions > 1
-                ? 'Relisez mes réponses aux questions'
-                : 'Relisez ma réponse à la question'
-              : 'Formulaire rempli, à vous de l’envoyer'}
+                ? 'J’écris vos réponses aux questions…'
+                : 'J’écris votre réponse à la question…'
+              : stopped
+                ? 'Il reste un détail'
+                : 'Tout est prêt'}
         </h2>
+        {ready && <p className="lead">Vérifiez une dernière fois, puis envoyez.</p>}
       </div>
+      <SubmitNotice submit={submit} onConfirmSent={onConfirmSent} />
       <ul className="items">
         {result.cv && cvName && <Item status="done" title="CV joint" detail={cvName} />}
         {result.letter && (
@@ -301,18 +368,23 @@ function Filled({
             detail={fieldsLabel(result.fields)}
           />
         )}
-        {free.state.inserted && (
+        {questions > 0 && (
           <Item
-            status="done"
-            title="Questions libres"
+            status={writing ? 'working' : inserted > 0 ? 'done' : 'error'}
+            title="Réponses aux questions"
             detail={
-              free.state.insertedCount > 1
-                ? `${free.state.insertedCount} réponses insérées`
-                : 'Réponse insérée'
+              writing
+                ? 'Rédaction en cours…'
+                : inserted > 1
+                  ? `${inserted} insérées`
+                  : inserted === 1
+                    ? '1 insérée'
+                    : 'À écrire'
             }
           />
         )}
       </ul>
+      {questions > 0 && <FreeAnswersCard free={free} />}
       {asking || editing ? (
         <AnswersCard
           // Une nouvelle série de questions repart des réponses du profil.
@@ -326,20 +398,44 @@ function Filled({
           }}
         />
       ) : (
-        result.used.length > 0 && (
-          <ConfirmCard used={result.used} answers={answers} onEdit={() => setEditing(true)} />
+        (result.used.length > 0 || declarations.length > 0) && (
+          <ConfirmCard
+            used={result.used}
+            declarations={declarations}
+            answers={answers}
+            onEdit={() => setEditing(true)}
+          />
         )
       )}
-      {questions > 0 && <FreeAnswersCard free={free} />}
       <p className="hint">
-        Relisez le formulaire, puis envoyez-le vous-même : je n’envoie jamais rien sans vous.
+        Je n’envoie rien sans votre clic.{' '}
+        <button type="button" className="link" onClick={onRefill}>
+          Remplir à nouveau
+        </button>
       </p>
     </section>
   );
 }
 
-/** Étape « Postuler » : le formulaire de candidature rempli en un clic, jamais envoyé seul. */
-export function ApplyView({ offer, hasProfile, state, answers, onAnswer, free }: Props) {
+/** Candidature envoyée : c'est fait, place à l'offre suivante. */
+function Sent({ offer }: { offer: JobOffer }) {
+  return (
+    <section className="onboard">
+      <span className="big-tick" aria-hidden="true">
+        <span>✓</span>
+      </span>
+      <div>
+        <div className="eyebrow">✦ Candidature envoyée</div>
+        <h2 className="title">C’est fait.</h2>
+      </div>
+      <JobCard offer={offer} />
+      <p className="lead">Ouvrez votre prochaine offre : je prépare la candidature suivante.</p>
+    </section>
+  );
+}
+
+/** Étape « Postuler » : le formulaire rempli en un clic, puis envoyé au seul clic de l'utilisateur. */
+export function ApplyView({ offer, hasProfile, state, ...review }: Props) {
   if (!offer) {
     return (
       <section className="onboard">
@@ -354,7 +450,11 @@ export function ApplyView({ offer, hasProfile, state, answers, onAnswer, free }:
 
   switch (state.status) {
     case 'done':
-      return <Filled state={state} answers={answers} onAnswer={onAnswer} free={free} />;
+      return review.submit.status === 'sent' ? (
+        <Sent offer={offer} />
+      ) : (
+        <Review state={state} {...review} />
+      );
 
     case 'filling':
       return (

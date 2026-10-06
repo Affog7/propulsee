@@ -204,7 +204,12 @@ export function VerifyView({ offer, cv, letter, hasProfile, downloadError, ...ac
           {downloadError}
         </p>
       )}
-      {ready && <p className="hint">Aucun ajout : tout vient de votre profil et de l’offre.</p>}
+      {ready && (
+        <p className="hint">
+          Aucun ajout : tout vient de votre profil et de l’offre. Les aperçus sont facultatifs, rien
+          ne part avant votre clic d’envoi.
+        </p>
+      )}
     </section>
   );
 }
