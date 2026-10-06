@@ -5,6 +5,7 @@ import {
   type MasterProfile,
   type ProfileEducation,
   type ProfileExperience,
+  type WorkAuthorization,
 } from '@propulsee/shared';
 import { useState, type ClipboardEvent, type KeyboardEvent } from 'react';
 
@@ -199,6 +200,37 @@ export function ProfileEditor({ profile, onChange }: Props) {
         >
           + Ajouter une formation
         </button>
+      </section>
+
+      <section className="card">
+        <h3 className="cap">Candidatures</h3>
+        <div className="contact contact--answers">
+          <QuietField
+            label="Prétentions salariales"
+            value={profile.answers.salary}
+            onChange={(v) => set('answers', { ...profile.answers, salary: v })}
+          />
+          <label className="qfield">
+            <span>Autorisé·e à travailler</span>
+            <select
+              className="qi"
+              value={profile.answers.workAuthorization}
+              onChange={(e) =>
+                set('answers', {
+                  ...profile.answers,
+                  workAuthorization: e.target.value as WorkAuthorization,
+                })
+              }
+            >
+              <option value="">—</option>
+              <option value="yes">Oui</option>
+              <option value="no">Non</option>
+            </select>
+          </label>
+        </div>
+        <p className="hint">
+          Je vous les demande au premier formulaire qui en a besoin, puis je les réutilise.
+        </p>
       </section>
     </div>
   );

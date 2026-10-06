@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_CV_TEXT_LENGTH,
   buildProfileExtractionPrompt,
+  emptyAnswers,
   emptyProfile,
   normalizeProfile,
   parseProfileResponse,
   profileInitials,
+  sameDocumentContent,
 } from './profile';
 
 describe('buildProfileExtractionPrompt', () => {
@@ -73,5 +75,23 @@ describe('profileInitials', () => {
     expect(profileInitials('camille de la Martin')).toBe('CM');
     expect(profileInitials('Camille')).toBe('C');
     expect(profileInitials('  ')).toBe('');
+  });
+});
+
+describe('réponses aux formulaires', () => {
+  it('garde le salaire et l’autorisation de travail, ignore une valeur inconnue', () => {
+    expect(
+      normalizeProfile({ answers: { salary: ' 65 000 € ', workAuthorization: 'yes' } }).answers,
+    ).toEqual({ salary: '65 000 €', workAuthorization: 'yes' });
+    expect(normalizeProfile({ answers: { workAuthorization: 'peut-être' } }).answers).toEqual(
+      emptyAnswers(),
+    );
+  });
+
+  it('ne périme pas les documents quand seules les réponses changent', () => {
+    const profile = { ...emptyProfile(), fullName: 'Camille Martin' };
+    const answered = { ...profile, answers: { salary: '70k', workAuthorization: 'no' as const } };
+    expect(sameDocumentContent(profile, answered)).toBe(true);
+    expect(sameDocumentContent(profile, { ...profile, fullName: 'Camille Durand' })).toBe(false);
   });
 });
